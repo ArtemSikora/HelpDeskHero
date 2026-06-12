@@ -7,6 +7,29 @@
 
 <h3>Tickets</h3>
 
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <div class="alert alert-danger">
+        @_error
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(_success))
+{
+    <div class="alert alert-success">
+        @_success
+    </div>
+}
+
+<select class="form-control mb-3"
+        @bind="_statusFilter">
+
+    <option>All</option>
+    <option>New</option>
+    <option>Closed</option>
+
+</select>
+
 <input class="form-control mb-2"
        placeholder="Title"
        @bind="_title" />
@@ -16,12 +39,12 @@
           @bind="_description">
 </textarea>
 
-<select class="form-control mb-2"
+<select class="form-control mb-3"
         @bind="_priority">
 
-<option>Low</option>
-<option>Medium</option>
-<option>High</option>
+    <option>Low</option>
+    <option>Medium</option>
+    <option>High</option>
 
 </select>
 
@@ -46,26 +69,84 @@ Dodaj Ticket
 
 <tbody>
 
-@foreach (var ticket in _tickets)
+@foreach (var ticket in FilteredTickets)
 {
 <tr>
 
 <td>@ticket.Number</td>
 
-<td>@ticket.Title</td>
+<td>
+
+@if (_editId == ticket.Id)
+{
+<input class="form-control"
+       @bind="_editTitle" />
+}
+else
+{
+@ticket.Title
+}
+
+</td>
 
 <td>@ticket.Status</td>
 
-<td>@ticket.Priority</td>
+<td>
+
+@if (_editId == ticket.Id)
+{
+<select class="form-control"
+        @bind="_editPriority">
+
+<option>Low</option>
+<option>Medium</option>
+<option>High</option>
+
+</select>
+}
+else
+{
+@ticket.Priority
+}
+
+</td>
 
 <td>
+
+@if (_editId == ticket.Id)
+{
+<button class="btn btn-primary me-2"
+        @onclick="SaveEdit">
+
+Zapisz
+
+</button>
+
+<button class="btn btn-secondary"
+        @onclick="CancelEdit">
+
+Anuluj
+
+</button>
+}
+else
+{
+<button class="btn btn-warning me-2"
+        @onclick="() => StartEdit(ticket)">
+
+Edytuj
+
+</button>
 
 @if (ticket.Status != "Closed")
 {
 <button class="btn btn-success"
         @onclick="() => Close(ticket.Id)">
+
 Zamknij
+
 </button>
+}
 }
 
 </td>
@@ -82,44 +163,125 @@ Zamknij
 List<TicketDto> _tickets = [];
 
 string _title = "";
-
 string _description = "";
-
 string _priority = "Medium";
+
+string _error = "";
+string _success = "";
+
+string _statusFilter = "All";
+
+int? _editId;
+
+string _editTitle = "";
+
+string _editPriority = "";
+
+IEnumerable<TicketDto> FilteredTickets =>
+    _statusFilter == "All"
+        ? _tickets
+        : _tickets.Where(
+            x => x.Status == _statusFilter);
 
 protected override async Task OnInitializedAsync()
 {
-await Load();
+    await Load();
 }
 
 async Task Load()
 {
-_tickets =
-(await TicketApi.GetAllAsync())
-.ToList();
+    _tickets =
+        (await TicketApi.GetAllAsync())
+        .ToList();
 }
 
 async Task CreateTicket()
 {
-await TicketApi.CreateAsync(
-new()
-{
-Title = _title,
-Description = _description,
-Priority = _priority
-});
+    _error = "";
+    _success = "";
 
-_title = "";
-_description = "";
+    if (string.IsNullOrWhiteSpace(_title))
+    {
+        _error = "Title jest wymagany";
+        return;
+    }
 
-await Load();
+    if (string.IsNullOrWhiteSpace(_description))
+    {
+        _error = "Description jest wymagany";
+        return;
+    }
+
+    await TicketApi.CreateAsync(
+        new()
+        {
+            Title = _title,
+            Description = _description,
+            Priority = _priority
+        });
+
+    _title = "";
+    _description = "";
+
+    _success = "Ticket został dodany";
+
+    await Load();
 }
 
-async Task Close(int id)
+void StartEdit(
+    TicketDto ticket)
 {
-await TicketApi.CloseAsync(id);
+    _editId =
+        ticket.Id;
 
-await Load();
+    _editTitle =
+        ticket.Title;
+
+    _editPriority =
+        ticket.Priority;
+}
+
+void CancelEdit()
+{
+    _editId = null;
+}
+
+async Task SaveEdit()
+{
+    var ticket =
+        _tickets
+            .First(
+                x => x.Id == _editId);
+
+    await TicketApi.UpdateAsync(
+        ticket.Id,
+        new UpdateTicketDto
+        {
+            Title = _editTitle,
+            Description = ticket.Description,
+            Priority = _editPriority,
+            Status = ticket.Status
+        });
+
+    _success =
+        "Ticket zapisany";
+
+    _editId =
+        null;
+
+    await Load();
+}
+
+async Task Close(
+    int id)
+{
+    await TicketApi.CloseAsync(
+        id);
+
+    _success =
+        "Ticket zamknięty";
+
+    await Load();
 }
 
 }

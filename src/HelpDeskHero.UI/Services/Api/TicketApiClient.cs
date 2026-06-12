@@ -22,7 +22,8 @@ public sealed class TicketApiClient
         return result ?? [];
     }
 
-    public async Task CreateAsync(CreateTicketDto dto)
+    public async Task CreateAsync(
+        CreateTicketDto dto)
     {
         var response =
             await _httpClient
@@ -33,13 +34,38 @@ public sealed class TicketApiClient
         response.EnsureSuccessStatusCode();
     }
 
-    public async Task CloseAsync(int id)
+    public async Task UpdateAsync(
+        int id,
+        UpdateTicketDto dto)
+    {
+        var response =
+            await _httpClient
+                .PutAsJsonAsync(
+                    $"api/Tickets/{id}",
+                    dto);
+
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task CloseAsync(
+        int id)
     {
         var response =
             await _httpClient
                 .PutAsync(
                     $"api/Tickets/{id}",
                     null);
+
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task DeleteAsync(
+        int id)
+    {
+        var response =
+            await _httpClient
+                .DeleteAsync(
+                    $"api/Tickets/{id}");
 
         response.EnsureSuccessStatusCode();
     }

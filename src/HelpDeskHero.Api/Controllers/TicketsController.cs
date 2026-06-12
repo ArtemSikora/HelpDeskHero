@@ -1,5 +1,8 @@
+using HelpDeskHero.Api.Domain;
+using HelpDeskHero.Api.Infrastructure;
 using HelpDeskHero.Shared.Contracts.Tickets;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace HelpDeskHero.Api.Controllers;
 
@@ -7,61 +10,128 @@ namespace HelpDeskHero.Api.Controllers;
 [Route("api/[controller]")]
 public sealed class TicketsController : ControllerBase
 {
-    private static readonly List<TicketDto> Tickets =
-    [
-        new()
-        {
-            Id = 1,
-            Number = "HDH-0001",
-            Title = "Printer not working",
-            Description = "Office printer shows paper jam.",
-            Status = "New",
-            Priority = "High",
-            CreatedAtUtc = DateTime.UtcNow
-        }
-    ];
+    private readonly AppDbContext _db;
+
+    public TicketsController(
+        AppDbContext db)
+    {
+        _db = db;
+    }
 
     [HttpGet]
-    public ActionResult<IReadOnlyList<TicketDto>> GetAll()
+    public async Task<ActionResult<IReadOnlyList<TicketDto>>> GetAll()
     {
-        return Ok(Tickets);
+        var tickets =
+            await _db.Tickets
+                .OrderBy(x => x.Id)
+                .Select(
+                    x => new TicketDto
+                    {
+                        Id = x.Id,
+                        Number = x.Number,
+                        Title = x.Title,
+                        Description = x.Description,
+                        Status = x.Status,
+                        Priority = x.Priority,
+                        CreatedAtUtc = x.CreatedAtUtc
+                    })
+                .ToListAsync();
+
+        return Ok(tickets);
     }
 
     [HttpPost]
-    public ActionResult<TicketDto> Create(CreateTicketDto dto)
+    public async Task<ActionResult<TicketDto>> Create(
+        CreateTicketDto dto)
     {
         var nextId =
-            Tickets.Count == 0
-                ? 1
-                : Tickets.Max(x => x.Id) + 1;
+            await _db.Tickets.CountAsync()
+            + 1;
 
-        var ticket = new TicketDto
-        {
-            Id = nextId,
-            Number = $"HDH-{nextId:0000}",
-            Title = dto.Title,
-            Description = dto.Description,
-            Priority = dto.Priority,
-            Status = "New",
-            CreatedAtUtc = DateTime.UtcNow
-        };
+        var ticket =
+            new Ticket
+            {
+                Number =
+                    $"HDH-{nextId:0000}",
 
-        Tickets.Add(ticket);
+                Title =
+                    dto.Title,
 
-        return Ok(ticket);
+                Description =
+                    dto.Description,
+
+                Priority =
+                    dto.Priority,
+
+                Status =
+                    "New",
+
+                CreatedAtUtc =
+                    DateTime.UtcNow
+            };
+
+        _db.Tickets.Add(ticket);
+
+        await _db.SaveChangesAsync();
+
+        return Ok(
+            new TicketDto
+            {
+                Id = ticket.Id,
+                Number = ticket.Number,
+                Title = ticket.Title,
+                Description = ticket.Description,
+                Status = ticket.Status,
+                Priority = ticket.Priority,
+                CreatedAtUtc = ticket.CreatedAtUtc
+            });
     }
 
     [HttpPut("{id}")]
-    public IActionResult Close(int id)
+    public async Task<IActionResult> Update(
+        int id,
+        UpdateTicketDto dto)
     {
         var ticket =
-            Tickets.FirstOrDefault(
-                x => x.Id == id);
+            await _db.Tickets
+                .FirstOrDefaultAsync(
+                    x => x.Id == id);
 
         if (ticket is null)
             return NotFound();
 
-        ticket.Status = "Closed";
+        ticket.Title =
+            dto.Title;
+
+        ticket.Description =
+            dto.Description;
+
+        ticket.Priority =
+            dto.Priority;
+
+        ticket.Status =
+            dto.Status;
+
+        await _db.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(
+        int id)
+    {
+        var ticket =
+            await _db.Tickets
+                .FirstOrDefaultAsync(
+                    x => x.Id == id);
+
+        if (ticket is null)
+            return NotFound();
+
+        _db.Tickets.Remove(ticket);
+
+        await _db.SaveChangesAsync();
 
         return NoContent();
     }
