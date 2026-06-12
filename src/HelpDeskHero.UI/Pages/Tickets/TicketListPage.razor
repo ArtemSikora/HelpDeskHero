@@ -1,0 +1,125 @@
+@page "/tickets"
+
+@using HelpDeskHero.Shared.Contracts.Tickets
+@using HelpDeskHero.UI.Services.Api
+
+@inject TicketApiClient TicketApi
+
+<h3>Tickets</h3>
+
+<input class="form-control mb-2"
+       placeholder="Title"
+       @bind="_title" />
+
+<textarea class="form-control mb-2"
+          placeholder="Description"
+          @bind="_description">
+</textarea>
+
+<select class="form-control mb-2"
+        @bind="_priority">
+
+<option>Low</option>
+<option>Medium</option>
+<option>High</option>
+
+</select>
+
+<button class="btn btn-primary mb-4"
+        @onclick="CreateTicket">
+
+Dodaj Ticket
+
+</button>
+
+<table class="table">
+
+<thead>
+<tr>
+<th>Number</th>
+<th>Title</th>
+<th>Status</th>
+<th>Priority</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+
+@foreach (var ticket in _tickets)
+{
+<tr>
+
+<td>@ticket.Number</td>
+
+<td>@ticket.Title</td>
+
+<td>@ticket.Status</td>
+
+<td>@ticket.Priority</td>
+
+<td>
+
+@if (ticket.Status != "Closed")
+{
+<button class="btn btn-success"
+        @onclick="() => Close(ticket.Id)">
+Zamknij
+</button>
+}
+
+</td>
+
+</tr>
+}
+
+</tbody>
+
+</table>
+
+@code {
+
+List<TicketDto> _tickets = [];
+
+string _title = "";
+
+string _description = "";
+
+string _priority = "Medium";
+
+protected override async Task OnInitializedAsync()
+{
+await Load();
+}
+
+async Task Load()
+{
+_tickets =
+(await TicketApi.GetAllAsync())
+.ToList();
+}
+
+async Task CreateTicket()
+{
+await TicketApi.CreateAsync(
+new()
+{
+Title = _title,
+Description = _description,
+Priority = _priority
+});
+
+_title = "";
+_description = "";
+
+await Load();
+}
+
+async Task Close(int id)
+{
+await TicketApi.CloseAsync(id);
+
+await Load();
+}
+
+}
