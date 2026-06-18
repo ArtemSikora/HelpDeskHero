@@ -1,23 +1,23 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
+using HelpDeskHero.Api.Domain;
+using HelpDeskHero.Api.Security;
 using HelpDeskHero.Shared.Contracts.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
 
 namespace HelpDeskHero.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public sealed class AuthController : ControllerBase
+public sealed class AuthController
+    : ControllerBase
 {
-    private readonly IConfiguration _configuration;
+    private readonly ITokenService _tokenService;
 
     public AuthController(
-        IConfiguration configuration)
+        ITokenService tokenService)
     {
-        _configuration = configuration;
+        _tokenService =
+            tokenService;
     }
 
     [HttpPost("login")]
@@ -25,93 +25,62 @@ public sealed class AuthController : ControllerBase
     public ActionResult<LoginResponseDto> Login(
         LoginRequestDto dto)
     {
-        if (!IsValidUser(dto))
+        var user =
+            GetUser(dto);
+
+        if (user is null)
         {
             return Unauthorized();
         }
 
-        var role =
-            dto.UserName.Equals(
-                "admin",
-                StringComparison.OrdinalIgnoreCase)
-            ? "Admin"
-            : "User";
-
-        var (token, expiresAtUtc) =
-            CreateToken(
-                dto.UserName,
-                role);
+        var token =
+            _tokenService
+                .CreateAccessToken(
+                    user);
 
         return Ok(
             new LoginResponseDto
             {
-                Token = token,
-                ExpiresAtUtc = expiresAtUtc,
-                UserName = dto.UserName,
-                Role = role
+                Token =
+                    token,
+
+                ExpiresAtUtc =
+                    DateTime.UtcNow
+                        .AddMinutes(15),
+
+                UserName =
+                    user.UserName,
+
+                Role =
+                    user.Role
             });
     }
 
-    private static bool IsValidUser(
+    private static AppUser? GetUser(
         LoginRequestDto dto)
     {
-        return
-            (dto.UserName == "admin"
-             && dto.Password == "Admin123!")
-
-            ||
-
-            (dto.UserName == "user"
-             && dto.Password == "User123!");
-    }
-
-    private (string Token, DateTime ExpiresAtUtc)
-        CreateToken(
-            string userName,
-            string role)
-    {
-        var jwt =
-            _configuration.GetSection("Jwt");
-
-        var key =
-            jwt["Key"]
-            ?? throw new InvalidOperationException();
-
-        var signingKey =
-            new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(key));
-
-        var credentials =
-            new SigningCredentials(
-                signingKey,
-                SecurityAlgorithms.HmacSha256);
-
-        var expires =
-            DateTime.UtcNow.AddHours(8);
-
-        var claims =
-            new List<Claim>
+        if (dto.UserName == "admin"
+            && dto.Password == "Admin123!")
+        {
+            return new AppUser
             {
-                new(
-                    ClaimTypes.Name,
-                    userName),
-
-                new(
-                    ClaimTypes.Role,
-                    role)
+                Id = 1,
+                UserName = "admin",
+                Role = "Admin"
             };
+        }
 
-        var token =
-            new JwtSecurityToken(
-                issuer: jwt["Issuer"],
-                audience: jwt["Audience"],
-                claims: claims,
-                expires: expires,
-                signingCredentials: credentials);
+        if (dto.UserName == "user"
+            && dto.Password == "User123!")
+        {
+            return new AppUser
+            {
+                Id = 2,
+                UserName = "user",
+                Role = "User"
+            };
+        }
 
-        return (
-            new JwtSecurityTokenHandler()
-                .WriteToken(token),
-            expires);
+        return null;
     }
 }

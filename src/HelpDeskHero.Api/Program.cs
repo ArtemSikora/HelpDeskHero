@@ -1,5 +1,6 @@
 using System.Text;
 using HelpDeskHero.Api.Infrastructure;
+using HelpDeskHero.Api.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -31,8 +32,17 @@ builder.Services.AddDbContext<AppDbContext>(
                 .GetConnectionString(
                     "DefaultConnection")));
 
+builder.Services.Configure<JwtOptions>(
+    builder.Configuration.GetSection(
+        "Jwt"));
+
+builder.Services.AddScoped<
+    ITokenService,
+    TokenService>();
+
 var jwtSection =
-    builder.Configuration.GetSection("Jwt");
+    builder.Configuration.GetSection(
+        "Jwt");
 
 var jwtKey =
     jwtSection["Key"]
@@ -41,7 +51,8 @@ var jwtKey =
 
 var signingKey =
     new SymmetricSecurityKey(
-        Encoding.UTF8.GetBytes(jwtKey));
+        Encoding.UTF8.GetBytes(
+            jwtKey));
 
 builder.Services
     .AddAuthentication(
@@ -88,7 +99,8 @@ builder.Services.AddSwaggerGen(options =>
             Scheme = "bearer",
             BearerFormat = "JWT",
             In = ParameterLocation.Header,
-            Description = "Wpisz: Bearer {token}"
+            Description =
+                "Wpisz: Bearer {token}"
         });
 
     options.AddSecurityRequirement(
@@ -113,7 +125,8 @@ builder.Services.AddSwaggerGen(options =>
         });
 });
 
-var app = builder.Build();
+var app =
+    builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
@@ -122,7 +135,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors(CorsPolicyName);
+app.UseCors(
+    CorsPolicyName);
 
 app.UseAuthentication();
 
