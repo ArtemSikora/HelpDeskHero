@@ -50,13 +50,38 @@ public sealed class TicketApiClient
     public async Task CloseAsync(
         int id)
     {
-        var response =
-            await _httpClient
-                .PutAsync(
-                    $"api/Tickets/{id}",
-                    null);
+        var tickets =
+            await GetAllAsync();
 
-        response.EnsureSuccessStatusCode();
+        var ticket =
+            tickets
+                .FirstOrDefault(
+                    x => x.Id == id);
+
+        if (ticket is null)
+        {
+            return;
+        }
+
+        var dto =
+            new UpdateTicketDto
+            {
+                Title =
+                    ticket.Title,
+
+                Description =
+                    ticket.Description,
+
+                Priority =
+                    ticket.Priority,
+
+                Status =
+                    "Closed"
+            };
+
+        await UpdateAsync(
+            id,
+            dto);
     }
 
     public async Task DeleteAsync(

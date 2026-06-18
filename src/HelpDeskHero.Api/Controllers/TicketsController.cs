@@ -1,6 +1,7 @@
 using HelpDeskHero.Api.Domain;
 using HelpDeskHero.Api.Infrastructure;
 using HelpDeskHero.Shared.Contracts.Tickets;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,6 +9,7 @@ namespace HelpDeskHero.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public sealed class TicketsController : ControllerBase
 {
     private readonly AppDbContext _db;
@@ -118,6 +120,7 @@ public sealed class TicketsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(
         int id)
     {

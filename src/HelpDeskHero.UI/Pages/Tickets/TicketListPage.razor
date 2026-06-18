@@ -140,13 +140,20 @@ Edytuj
 
 @if (ticket.Status != "Closed")
 {
-<button class="btn btn-success"
+<button class="btn btn-success me-2"
         @onclick="() => Close(ticket.Id)">
 
 Zamknij
 
 </button>
 }
+
+<button class="btn btn-danger"
+        @onclick="() => Delete(ticket.Id)">
+
+Usuń
+
+</button>
 }
 
 </td>
@@ -280,6 +287,18 @@ async Task Close(
 
     _success =
         "Ticket zamknięty";
+
+    await Load();
+}
+
+async Task Delete(
+    int id)
+{
+    await TicketApi.DeleteAsync(
+        id);
+
+    _success =
+        "Ticket usunięty";
 
     await Load();
 }
