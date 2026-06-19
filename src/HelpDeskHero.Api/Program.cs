@@ -1,5 +1,6 @@
 using System.Text;
 using HelpDeskHero.Api.Infrastructure;
+using HelpDeskHero.Api.Infrastructure.Persistence;
 using HelpDeskHero.Api.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -82,7 +83,30 @@ builder.Services
                 };
         });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(
+    options =>
+    {
+        options.AddPolicy(
+            "AdminOnly",
+            policy =>
+                policy.RequireRole(
+                    "Admin"));
+
+        options.AddPolicy(
+            "AgentOrAdmin",
+            policy =>
+                policy.RequireRole(
+                    "Agent",
+                    "Admin"));
+
+        options.AddPolicy(
+            "CanManageTickets",
+            policy =>
+                policy.RequireRole(
+                    "User",
+                    "Agent",
+                    "Admin"));
+    });
 
 builder.Services.AddControllers();
 
@@ -127,6 +151,16 @@ builder.Services.AddSwaggerGen(options =>
 
 var app =
     builder.Build();
+
+using (var scope =
+       app.Services.CreateScope())
+{
+    var db =
+        scope.ServiceProvider
+            .GetRequiredService<AppDbContext>();
+
+    await DbSeeder.SeedAsync(db);
+}
 
 if (app.Environment.IsDevelopment())
 {

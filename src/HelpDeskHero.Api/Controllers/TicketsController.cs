@@ -10,7 +10,8 @@ namespace HelpDeskHero.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public sealed class TicketsController : ControllerBase
+public sealed class TicketsController
+    : ControllerBase
 {
     private readonly AppDbContext _db;
 
@@ -25,7 +26,8 @@ public sealed class TicketsController : ControllerBase
     {
         var tickets =
             await _db.Tickets
-                .OrderBy(x => x.Id)
+                .OrderByDescending(
+                    x => x.Id)
                 .Select(
                     x => new TicketDto
                     {
@@ -39,22 +41,23 @@ public sealed class TicketsController : ControllerBase
                     })
                 .ToListAsync();
 
-        return Ok(tickets);
+        return Ok(
+            tickets);
     }
 
     [HttpPost]
+    [Authorize(Policy = "CanManageTickets")]
     public async Task<ActionResult<TicketDto>> Create(
         CreateTicketDto dto)
     {
-        var nextId =
-            await _db.Tickets.CountAsync()
-            + 1;
+        var nextNumber =
+            $"HDH-{(await _db.Tickets.CountAsync() + 1):0000}";
 
         var ticket =
             new Ticket
             {
                 Number =
-                    $"HDH-{nextId:0000}",
+                    nextNumber,
 
                 Title =
                     dto.Title,
@@ -72,7 +75,8 @@ public sealed class TicketsController : ControllerBase
                     DateTime.UtcNow
             };
 
-        _db.Tickets.Add(ticket);
+        _db.Tickets.Add(
+            ticket);
 
         await _db.SaveChangesAsync();
 
@@ -90,6 +94,7 @@ public sealed class TicketsController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Policy = "AgentOrAdmin")]
     public async Task<IActionResult> Update(
         int id,
         UpdateTicketDto dto)
@@ -100,7 +105,9 @@ public sealed class TicketsController : ControllerBase
                     x => x.Id == id);
 
         if (ticket is null)
+        {
             return NotFound();
+        }
 
         ticket.Title =
             dto.Title;
@@ -120,7 +127,7 @@ public sealed class TicketsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> Delete(
         int id)
     {
@@ -130,9 +137,12 @@ public sealed class TicketsController : ControllerBase
                     x => x.Id == id);
 
         if (ticket is null)
+        {
             return NotFound();
+        }
 
-        _db.Tickets.Remove(ticket);
+        _db.Tickets.Remove(
+            ticket);
 
         await _db.SaveChangesAsync();
 

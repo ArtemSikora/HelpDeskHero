@@ -56,6 +56,46 @@ public sealed class AuthController
             });
     }
 
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    public ActionResult<RefreshTokenResponseDto> Refresh(
+        RefreshTokenRequestDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(
+                dto.RefreshToken))
+        {
+            return Unauthorized();
+        }
+
+        return Ok(
+            new RefreshTokenResponseDto
+            {
+                Token =
+                    Guid.NewGuid()
+                        .ToString(),
+
+                ExpiresAtUtc =
+                    DateTime.UtcNow
+                        .AddMinutes(15),
+
+                RefreshToken =
+                    Guid.NewGuid()
+                        .ToString()
+            });
+    }
+
+    [HttpPost("revoke")]
+    [Authorize]
+    public IActionResult Revoke()
+    {
+        return Ok(
+            new
+            {
+                Message =
+                    "Refresh token revoked"
+            });
+    }
+
     private static AppUser? GetUser(
         LoginRequestDto dto)
     {
@@ -70,12 +110,23 @@ public sealed class AuthController
             };
         }
 
+        if (dto.UserName == "agent"
+            && dto.Password == "Agent123!")
+        {
+            return new AppUser
+            {
+                Id = 2,
+                UserName = "agent",
+                Role = "Agent"
+            };
+        }
+
         if (dto.UserName == "user"
             && dto.Password == "User123!")
         {
             return new AppUser
             {
-                Id = 2,
+                Id = 3,
                 UserName = "user",
                 Role = "User"
             };
