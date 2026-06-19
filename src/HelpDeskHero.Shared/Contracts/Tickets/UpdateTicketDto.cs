@@ -1,12 +1,40 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace HelpDeskHero.Shared.Contracts.Tickets;
 
 public sealed class UpdateTicketDto
 {
-    public string Title { get; set; } = "";
+    [Required]
+    [StringLength(200)]
+    public string Title
+    {
+        get;
+        set;
+    } = string.Empty;
 
-    public string Description { get; set; } = "";
+    [Required]
+    [StringLength(1000)]
+    public string Description
+    {
+        get;
+        set;
+    } = string.Empty;
 
-    public string Status { get; set; } = "New";
+    [Required]
+    [RegularExpression(
+        "New|Closed")]
+    public string Status
+    {
+        get;
+        set;
+    } = "New";
 
-    public string Priority { get; set; } = "Medium";
+    [Required]
+    [RegularExpression(
+        "Low|Medium|High")]
+    public string Priority
+    {
+        get;
+        set;
+    } = "Medium";
 }
