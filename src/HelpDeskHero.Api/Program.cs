@@ -45,23 +45,29 @@ builder.Services
                         "DefaultConnection")));
 
 builder.Services
-    .AddIdentity<ApplicationUser,
+    .AddIdentity<
+        ApplicationUser,
         IdentityRole>(
         options =>
         {
-            options.Password.RequireDigit =
+            options.Password
+                .RequireDigit =
                 false;
 
-            options.Password.RequireUppercase =
+            options.Password
+                .RequireUppercase =
                 false;
 
-            options.Password.RequireLowercase =
+            options.Password
+                .RequireLowercase =
                 false;
 
-            options.Password.RequireNonAlphanumeric =
+            options.Password
+                .RequireNonAlphanumeric =
                 false;
 
-            options.Password.RequiredLength =
+            options.Password
+                .RequiredLength =
                 6;
         })
     .AddEntityFrameworkStores<
@@ -78,6 +84,10 @@ builder.Services
     .AddScoped<
         ITokenService,
         TokenService>();
+
+builder.Services
+    .AddScoped<
+        AuditService>();
 
 var jwtSection =
     builder.Configuration
@@ -98,22 +108,26 @@ builder.Services
     .AddAuthentication(
         options =>
         {
-            options.DefaultAuthenticateScheme =
+            options
+                .DefaultAuthenticateScheme =
                 JwtBearerDefaults
                     .AuthenticationScheme;
 
-            options.DefaultChallengeScheme =
+            options
+                .DefaultChallengeScheme =
                 JwtBearerDefaults
                     .AuthenticationScheme;
 
-            options.DefaultScheme =
+            options
+                .DefaultScheme =
                 JwtBearerDefaults
                     .AuthenticationScheme;
         })
     .AddJwtBearer(
         options =>
         {
-            options.TokenValidationParameters =
+            options
+                .TokenValidationParameters =
                 new TokenValidationParameters
                 {
                     ValidateIssuer =
@@ -129,10 +143,12 @@ builder.Services
                         true,
 
                     ValidIssuer =
-                        jwtSection["Issuer"],
+                        jwtSection[
+                            "Issuer"],
 
                     ValidAudience =
-                        jwtSection["Audience"],
+                        jwtSection[
+                            "Audience"],
 
                     IssuerSigningKey =
                         signingKey,
@@ -146,26 +162,32 @@ builder.Services
     .AddAuthorization(
         options =>
         {
-            options.AddPolicy(
-                "AdminOnly",
-                policy =>
-                    policy.RequireRole(
-                        "Admin"));
+            options
+                .AddPolicy(
+                    "AdminOnly",
+                    policy =>
+                        policy
+                            .RequireRole(
+                                "Admin"));
 
-            options.AddPolicy(
-                "AgentOrAdmin",
-                policy =>
-                    policy.RequireRole(
-                        "Agent",
-                        "Admin"));
+            options
+                .AddPolicy(
+                    "AgentOrAdmin",
+                    policy =>
+                        policy
+                            .RequireRole(
+                                "Agent",
+                                "Admin"));
 
-            options.AddPolicy(
-                "CanManageTickets",
-                policy =>
-                    policy.RequireRole(
-                        "User",
-                        "Agent",
-                        "Admin"));
+            options
+                .AddPolicy(
+                    "CanManageTickets",
+                    policy =>
+                        policy
+                            .RequireRole(
+                                "User",
+                                "Agent",
+                                "Admin"));
         });
 
 builder.Services
@@ -178,49 +200,52 @@ builder.Services
     .AddSwaggerGen(
         options =>
         {
-            options.AddSecurityDefinition(
-                "Bearer",
-                new OpenApiSecurityScheme
-                {
-                    Name =
-                        "Authorization",
+            options
+                .AddSecurityDefinition(
+                    "Bearer",
 
-                    Type =
-                        SecuritySchemeType
-                            .Http,
-
-                    Scheme =
-                        "bearer",
-
-                    BearerFormat =
-                        "JWT",
-
-                    In =
-                        ParameterLocation
-                            .Header
-                });
-
-            options.AddSecurityRequirement(
-                new OpenApiSecurityRequirement
-                {
+                    new OpenApiSecurityScheme
                     {
-                        new OpenApiSecurityScheme
+                        Name =
+                            "Authorization",
+
+                        Type =
+                            SecuritySchemeType
+                                .Http,
+
+                        Scheme =
+                            "bearer",
+
+                        BearerFormat =
+                            "JWT",
+
+                        In =
+                            ParameterLocation
+                                .Header
+                    });
+
+            options
+                .AddSecurityRequirement(
+                    new OpenApiSecurityRequirement
+                    {
                         {
-                            Reference =
-                                new OpenApiReference
-                                {
-                                    Type =
-                                        ReferenceType
-                                            .SecurityScheme,
+                            new OpenApiSecurityScheme
+                            {
+                                Reference =
+                                    new OpenApiReference
+                                    {
+                                        Type =
+                                            ReferenceType
+                                                .SecurityScheme,
 
-                                    Id =
-                                        "Bearer"
-                                }
-                        },
+                                        Id =
+                                            "Bearer"
+                                    }
+                            },
 
-                        Array.Empty<string>()
-                    }
-                });
+                            Array.Empty<string>()
+                        }
+                    });
         });
 
 var app =

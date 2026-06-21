@@ -17,6 +17,9 @@ public sealed class AppDbContext
     public DbSet<Ticket> Tickets =>
         Set<Ticket>();
 
+    public DbSet<AuditLog> AuditLogs =>
+        Set<AuditLog>();
+
     public DbSet<RefreshToken> RefreshTokens =>
         Set<RefreshToken>();
 
@@ -59,6 +62,37 @@ public sealed class AppDbContext
                         t => t.Status)
                         .HasMaxLength(
                             30);
+                });
+
+        modelBuilder
+            .Entity<AuditLog>(
+                x =>
+                {
+                    x.HasKey(
+                        a => a.Id);
+
+                    x.Property(
+                        a => a.Action)
+                        .HasMaxLength(
+                            50)
+                        .IsRequired();
+
+                    x.Property(
+                        a => a.EntityName)
+                        .HasMaxLength(
+                            100)
+                        .IsRequired();
+
+                    x.Property(
+                        a => a.EntityId)
+                        .HasMaxLength(
+                            50)
+                        .IsRequired();
+
+                    x.Property(
+                        a => a.UserName)
+                        .HasMaxLength(
+                            100);
                 });
 
         modelBuilder
