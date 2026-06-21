@@ -1,6 +1,7 @@
 using HelpDeskHero.Api.Domain;
 using HelpDeskHero.Api.Security;
 using HelpDeskHero.Shared.Contracts.Auth;
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -52,9 +53,8 @@ public sealed class AuthController
         }
 
         var user =
-            new AppUser
+            new ApplicationUser
             {
-                Id = 1,
                 UserName = "admin",
                 Role = "Admin"
             };
@@ -76,7 +76,7 @@ public sealed class AuthController
                     accessToken,
 
                 RefreshToken =
-                    refreshToken.Token,
+                    refreshToken.TokenHash,
 
                 ExpiresAtUtc =
                     refreshToken.ExpiresAtUtc
@@ -92,7 +92,7 @@ public sealed class AuthController
 
     private LoginResponseDto
         CreateLoginResponse(
-            AppUser user)
+            ApplicationUser user)
     {
         var accessToken =
             _tokenService
@@ -110,29 +110,29 @@ public sealed class AuthController
                 accessToken,
 
             RefreshToken =
-                refreshToken.Token,
+                refreshToken.TokenHash,
 
             ExpiresAtUtc =
                 refreshToken.ExpiresAtUtc,
 
             UserName =
-                user.UserName,
+                user.UserName
+                ?? "",
 
             Role =
                 user.Role
         };
     }
 
-    private static AppUser?
+    private static ApplicationUser?
         GetUser(
             LoginRequestDto dto)
     {
         if (dto.UserName == "admin"
             && dto.Password == "Admin123!")
         {
-            return new AppUser
+            return new ApplicationUser
             {
-                Id = 1,
                 UserName = "admin",
                 Role = "Admin"
             };
@@ -141,9 +141,8 @@ public sealed class AuthController
         if (dto.UserName == "agent"
             && dto.Password == "Agent123!")
         {
-            return new AppUser
+            return new ApplicationUser
             {
-                Id = 2,
                 UserName = "agent",
                 Role = "Agent"
             };
@@ -152,9 +151,8 @@ public sealed class AuthController
         if (dto.UserName == "user"
             && dto.Password == "User123!")
         {
-            return new AppUser
+            return new ApplicationUser
             {
-                Id = 3,
                 UserName = "user",
                 Role = "User"
             };

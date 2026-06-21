@@ -1,59 +1,121 @@
 using HelpDeskHero.Api.Domain;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 
 namespace HelpDeskHero.Api.Infrastructure.Persistence;
 
 public static class DbSeeder
 {
     public static async Task SeedAsync(
-        AppDbContext db,
-        CancellationToken ct = default)
+        IServiceProvider services)
     {
-        await db.Database.MigrateAsync(ct);
+        using var scope =
+            services.CreateScope();
 
-        if (await db.Users.AnyAsync(ct))
+        var roleManager =
+            scope.ServiceProvider
+                .GetRequiredService<
+                    RoleManager<IdentityRole>>();
+
+        var userManager =
+            scope.ServiceProvider
+                .GetRequiredService<
+                    UserManager<ApplicationUser>>();
+
+        var roles =
+            new[]
+            {
+                "Admin",
+                "Agent",
+                "User"
+            };
+
+        foreach (var role in roles)
+        {
+            if (!await roleManager
+                    .RoleExistsAsync(
+                        role))
+            {
+                await roleManager
+                    .CreateAsync(
+                        new IdentityRole(
+                            role));
+            }
+        }
+
+        await CreateUser(
+            userManager,
+            "admin",
+            "Admin123!",
+            "Admin");
+
+        await CreateUser(
+            userManager,
+            "agent",
+            "Agent123!",
+            "Agent");
+
+        await CreateUser(
+            userManager,
+            "user",
+            "User123!",
+            "User");
+    }
+
+    private static async Task CreateUser(
+        UserManager<ApplicationUser>
+            userManager,
+
+        string userName,
+
+        string password,
+
+        string role)
+    {
+        var existing =
+            await userManager
+                .FindByNameAsync(
+                    userName);
+
+        if (existing is not null)
         {
             return;
         }
 
-        db.Users.AddRange(
-
-            new AppUser
+        var user =
+            new ApplicationUser
             {
-                UserName = "admin",
+                UserName =
+                    userName,
 
-                PasswordHash =
-                    BCrypt.Net.BCrypt
-                        .HashPassword(
-                            "Admin123!"),
+                DisplayName =
+                    userName,
 
-                Role = "Admin"
-            },
+                Role =
+                    role,
 
-            new AppUser
-            {
-                UserName = "agent",
+                Email =
+                    $"{userName}@hdh.local"
+            };
 
-                PasswordHash =
-                    BCrypt.Net.BCrypt
-                        .HashPassword(
-                            "Agent123!"),
+        var result =
+            await userManager
+                .CreateAsync(
+                    user,
+                    password);
 
-                Role = "Agent"
-            },
+        if (!result.Succeeded)
+        {
+            throw new Exception(
+                string.Join(
+                    ", ",
+                    result.Errors
+                        .Select(
+                            x => x.Description)));
+        }
 
-            new AppUser
-            {
-                UserName = "user",
-
-                PasswordHash =
-                    BCrypt.Net.BCrypt
-                        .HashPassword(
-                            "User123!"),
-
-                Role = "User"
-            });
-
-        await db.SaveChangesAsync(ct);
+        await userManager
+            .AddToRoleAsync(
+                user,
+                role);
     }
 }

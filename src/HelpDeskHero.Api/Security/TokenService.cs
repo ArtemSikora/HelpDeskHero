@@ -2,7 +2,9 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+
 using HelpDeskHero.Api.Domain;
+
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -21,23 +23,18 @@ public sealed class TokenService
     }
 
     public string CreateAccessToken(
-        AppUser user)
+        ApplicationUser user)
     {
-        var expires =
-            DateTime.UtcNow
-                .AddMinutes(
-                    _jwt.AccessTokenMinutes);
-
         var claims =
             new List<Claim>
             {
                 new(
                     ClaimTypes.Name,
-                    user.UserName),
+                    user.UserName ?? ""),
 
                 new(
                     ClaimTypes.Role,
-                    user.Role)
+                    user.Role ?? "User")
             };
 
         var key =
@@ -62,33 +59,28 @@ public sealed class TokenService
                     claims,
 
                 expires:
-                    expires,
+                    DateTime.UtcNow
+                        .AddMinutes(
+                            _jwt.AccessTokenMinutes),
 
                 signingCredentials:
                     credentials);
 
-        return
-            new JwtSecurityTokenHandler()
-                .WriteToken(
-                    token);
+        return new JwtSecurityTokenHandler()
+            .WriteToken(
+                token);
     }
 
     public RefreshToken CreateRefreshToken(
-        AppUser user)
+        ApplicationUser user)
     {
-        var bytes =
-            RandomNumberGenerator
-                .GetBytes(64);
-
         return new RefreshToken
         {
-            Token =
-                Convert
-                    .ToBase64String(
-                        bytes),
-
-            AppUserId =
-                user.Id,
+            TokenHash =
+                Convert.ToBase64String(
+                    RandomNumberGenerator
+                        .GetBytes(
+                            64)),
 
             ExpiresAtUtc =
                 DateTime.UtcNow

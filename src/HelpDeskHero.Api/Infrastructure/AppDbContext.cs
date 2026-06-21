@@ -1,10 +1,12 @@
 using HelpDeskHero.Api.Domain;
+
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace HelpDeskHero.Api.Infrastructure;
 
 public sealed class AppDbContext
-    : DbContext
+    : IdentityDbContext<ApplicationUser>
 {
     public AppDbContext(
         DbContextOptions<AppDbContext> options)
@@ -15,86 +17,62 @@ public sealed class AppDbContext
     public DbSet<Ticket> Tickets =>
         Set<Ticket>();
 
-    public DbSet<AppUser> Users =>
-        Set<AppUser>();
-
     public DbSet<RefreshToken> RefreshTokens =>
         Set<RefreshToken>();
 
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {
-        modelBuilder
-            .Entity<Ticket>()
-            .HasKey(
-                x => x.Id);
+        base.OnModelCreating(
+            modelBuilder);
 
         modelBuilder
-            .Entity<Ticket>()
-            .Property(
-                x => x.Number)
-            .HasMaxLength(
-                20);
+            .Entity<Ticket>(
+                x =>
+                {
+                    x.HasKey(
+                        t => t.Id);
+
+                    x.Property(
+                        t => t.Number)
+                        .HasMaxLength(
+                            30)
+                        .IsRequired();
+
+                    x.Property(
+                        t => t.Title)
+                        .HasMaxLength(
+                            200)
+                        .IsRequired();
+
+                    x.Property(
+                        t => t.Description)
+                        .HasMaxLength(
+                            4000);
+
+                    x.Property(
+                        t => t.Priority)
+                        .HasMaxLength(
+                            30);
+
+                    x.Property(
+                        t => t.Status)
+                        .HasMaxLength(
+                            30);
+                });
 
         modelBuilder
-            .Entity<Ticket>()
-            .Property(
-                x => x.Title)
-            .HasMaxLength(
-                200);
+            .Entity<RefreshToken>(
+                x =>
+                {
+                    x.HasKey(
+                        r => r.Id);
 
-        modelBuilder
-            .Entity<Ticket>()
-            .Property(
-                x => x.Priority)
-            .HasMaxLength(
-                50);
-
-        modelBuilder
-            .Entity<AppUser>()
-            .HasKey(
-                x => x.Id);
-
-        modelBuilder
-            .Entity<AppUser>()
-            .Property(
-                x => x.UserName)
-            .HasMaxLength(
-                100);
-
-        modelBuilder
-            .Entity<AppUser>()
-            .Property(
-                x => x.PasswordHash)
-            .HasMaxLength(
-                500);
-
-        modelBuilder
-            .Entity<AppUser>()
-            .Property(
-                x => x.Role)
-            .HasMaxLength(
-                50);
-
-        modelBuilder
-            .Entity<RefreshToken>()
-            .HasKey(
-                x => x.Id);
-
-        modelBuilder
-            .Entity<RefreshToken>()
-            .Property(
-                x => x.Token)
-            .HasMaxLength(
-                500);
-
-        modelBuilder
-            .Entity<AppUser>()
-            .HasMany(
-                x => x.RefreshTokens)
-            .WithOne(
-                x => x.AppUser)
-            .HasForeignKey(
-                x => x.AppUserId);
+                    x.Property(
+                        r => r.TokenHash)
+                        .HasMaxLength(
+                            256)
+                        .IsRequired();
+                });
     }
 }

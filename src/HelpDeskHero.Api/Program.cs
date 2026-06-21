@@ -1,49 +1,88 @@
 using System.Text;
+
+using HelpDeskHero.Api.Domain;
 using HelpDeskHero.Api.Infrastructure;
 using HelpDeskHero.Api.Infrastructure.Persistence;
 using HelpDeskHero.Api.Security;
+
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder =
+    WebApplication
+        .CreateBuilder(
+            args);
 
-const string CorsPolicyName = "BlazorUi";
+const string CorsPolicyName =
+    "BlazorUi";
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy(
-        CorsPolicyName,
-        policy =>
+builder.Services
+    .AddCors(
+        options =>
         {
-            policy
-                .WithOrigins(
-                    "http://localhost:5145",
-                    "https://localhost:5145")
-                .AllowAnyHeader()
-                .AllowAnyMethod();
+            options.AddPolicy(
+                CorsPolicyName,
+                policy =>
+                {
+                    policy
+                        .WithOrigins(
+                            "http://localhost:5145",
+                            "https://localhost:5145")
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                });
         });
-});
 
-builder.Services.AddDbContext<AppDbContext>(
-    options =>
-        options.UseSqlite(
-            builder.Configuration
-                .GetConnectionString(
-                    "DefaultConnection")));
+builder.Services
+    .AddDbContext<AppDbContext>(
+        options =>
+            options.UseSqlite(
+                builder.Configuration
+                    .GetConnectionString(
+                        "DefaultConnection")));
 
-builder.Services.Configure<JwtOptions>(
-    builder.Configuration.GetSection(
-        "Jwt"));
+builder.Services
+    .AddIdentity<ApplicationUser,
+        IdentityRole>(
+        options =>
+        {
+            options.Password.RequireDigit =
+                false;
 
-builder.Services.AddScoped<
-    ITokenService,
-    TokenService>();
+            options.Password.RequireUppercase =
+                false;
+
+            options.Password.RequireLowercase =
+                false;
+
+            options.Password.RequireNonAlphanumeric =
+                false;
+
+            options.Password.RequiredLength =
+                6;
+        })
+    .AddEntityFrameworkStores<
+        AppDbContext>()
+    .AddDefaultTokenProviders();
+
+builder.Services
+    .Configure<JwtOptions>(
+        builder.Configuration
+            .GetSection(
+                "Jwt"));
+
+builder.Services
+    .AddScoped<
+        ITokenService,
+        TokenService>();
 
 var jwtSection =
-    builder.Configuration.GetSection(
-        "Jwt");
+    builder.Configuration
+        .GetSection(
+            "Jwt");
 
 var jwtKey =
     jwtSection["Key"]
@@ -57,17 +96,37 @@ var signingKey =
 
 builder.Services
     .AddAuthentication(
-        JwtBearerDefaults.AuthenticationScheme)
+        options =>
+        {
+            options.DefaultAuthenticateScheme =
+                JwtBearerDefaults
+                    .AuthenticationScheme;
+
+            options.DefaultChallengeScheme =
+                JwtBearerDefaults
+                    .AuthenticationScheme;
+
+            options.DefaultScheme =
+                JwtBearerDefaults
+                    .AuthenticationScheme;
+        })
     .AddJwtBearer(
         options =>
         {
             options.TokenValidationParameters =
                 new TokenValidationParameters
                 {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidateLifetime = true,
+                    ValidateIssuer =
+                        true,
+
+                    ValidateAudience =
+                        true,
+
+                    ValidateIssuerSigningKey =
+                        true,
+
+                    ValidateLifetime =
+                        true,
 
                     ValidIssuer =
                         jwtSection["Issuer"],
@@ -79,90 +138,101 @@ builder.Services
                         signingKey,
 
                     ClockSkew =
-                        TimeSpan.FromMinutes(1)
+                        TimeSpan.Zero
                 };
         });
 
-builder.Services.AddAuthorization(
-    options =>
-    {
-        options.AddPolicy(
-            "AdminOnly",
-            policy =>
-                policy.RequireRole(
-                    "Admin"));
-
-        options.AddPolicy(
-            "AgentOrAdmin",
-            policy =>
-                policy.RequireRole(
-                    "Agent",
-                    "Admin"));
-
-        options.AddPolicy(
-            "CanManageTickets",
-            policy =>
-                policy.RequireRole(
-                    "User",
-                    "Agent",
-                    "Admin"));
-    });
-
-builder.Services.AddControllers();
-
-builder.Services.AddEndpointsApiExplorer();
-
-builder.Services.AddSwaggerGen(options =>
-{
-    options.AddSecurityDefinition(
-        "Bearer",
-        new OpenApiSecurityScheme
+builder.Services
+    .AddAuthorization(
+        options =>
         {
-            Name = "Authorization",
-            Type = SecuritySchemeType.Http,
-            Scheme = "bearer",
-            BearerFormat = "JWT",
-            In = ParameterLocation.Header,
-            Description =
-                "Wpisz: Bearer {token}"
+            options.AddPolicy(
+                "AdminOnly",
+                policy =>
+                    policy.RequireRole(
+                        "Admin"));
+
+            options.AddPolicy(
+                "AgentOrAdmin",
+                policy =>
+                    policy.RequireRole(
+                        "Agent",
+                        "Admin"));
+
+            options.AddPolicy(
+                "CanManageTickets",
+                policy =>
+                    policy.RequireRole(
+                        "User",
+                        "Agent",
+                        "Admin"));
         });
 
-    options.AddSecurityRequirement(
-        new OpenApiSecurityRequirement
+builder.Services
+    .AddControllers();
+
+builder.Services
+    .AddEndpointsApiExplorer();
+
+builder.Services
+    .AddSwaggerGen(
+        options =>
         {
-            {
+            options.AddSecurityDefinition(
+                "Bearer",
                 new OpenApiSecurityScheme
                 {
-                    Reference =
-                        new OpenApiReference
+                    Name =
+                        "Authorization",
+
+                    Type =
+                        SecuritySchemeType
+                            .Http,
+
+                    Scheme =
+                        "bearer",
+
+                    BearerFormat =
+                        "JWT",
+
+                    In =
+                        ParameterLocation
+                            .Header
+                });
+
+            options.AddSecurityRequirement(
+                new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
                         {
-                            Type =
-                                ReferenceType.SecurityScheme,
+                            Reference =
+                                new OpenApiReference
+                                {
+                                    Type =
+                                        ReferenceType
+                                            .SecurityScheme,
 
-                            Id =
-                                "Bearer"
-                        }
-                },
+                                    Id =
+                                        "Bearer"
+                                }
+                        },
 
-                Array.Empty<string>()
-            }
+                        Array.Empty<string>()
+                    }
+                });
         });
-});
 
 var app =
-    builder.Build();
+    builder
+        .Build();
 
-using (var scope =
-       app.Services.CreateScope())
-{
-    var db =
-        scope.ServiceProvider
-            .GetRequiredService<AppDbContext>();
+await DbSeeder
+    .SeedAsync(
+        app.Services);
 
-    await DbSeeder.SeedAsync(db);
-}
-
-if (app.Environment.IsDevelopment())
+if (app.Environment
+        .IsDevelopment())
 {
     app.UseSwagger();
 

@@ -5,8 +5,8 @@ namespace HelpDeskHero.Api.Security;
 public interface ITokenService
 {
     string CreateAccessToken(
-        AppUser user);
+        ApplicationUser user);
 
     RefreshToken CreateRefreshToken(
-        AppUser user);
+        ApplicationUser user);
 }
