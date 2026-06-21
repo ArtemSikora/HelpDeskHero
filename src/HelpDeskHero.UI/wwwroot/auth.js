@@ -1,6 +1,8 @@
 window.authStorage = {
+
     getToken: function () {
-        return localStorage.getItem("hdh_token");
+        return localStorage.getItem(
+            "hdh_token");
     },
 
     setToken: function (value) {
@@ -12,5 +14,37 @@ window.authStorage = {
     removeToken: function () {
         localStorage.removeItem(
             "hdh_token");
+    },
+
+    getRefreshToken: function () {
+        return localStorage.getItem(
+            "hdh_refresh_token");
+    },
+
+    setRefreshToken: function (value) {
+        localStorage.setItem(
+            "hdh_refresh_token",
+            value);
+    },
+
+    removeRefreshToken: function () {
+        localStorage.removeItem(
+            "hdh_refresh_token");
+    },
+
+    getRole: function () {
+        return localStorage.getItem(
+            "hdh_role");
+    },
+
+    setRole: function (value) {
+        localStorage.setItem(
+            "hdh_role",
+            value);
+    },
+
+    removeRole: function () {
+        localStorage.removeItem(
+            "hdh_role");
     }
 };

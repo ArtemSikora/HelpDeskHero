@@ -6,14 +6,19 @@ namespace HelpDeskHero.UI.Services.Auth;
 public sealed class AuthService
 {
     private readonly HttpClient _http;
-    private readonly TokenStorageService _tokenStorage;
+
+    private readonly TokenStorageService
+        _tokenStorage;
 
     public AuthService(
         HttpClient http,
         TokenStorageService tokenStorage)
     {
-        _http = http;
-        _tokenStorage = tokenStorage;
+        _http =
+            http;
+
+        _tokenStorage =
+            tokenStorage;
     }
 
     public async Task<bool> LoginAsync(
@@ -23,8 +28,11 @@ public sealed class AuthService
         var request =
             new LoginRequestDto
             {
-                UserName = userName,
-                Password = password
+                UserName =
+                    userName,
+
+                Password =
+                    password
             };
 
         var response =
@@ -34,18 +42,39 @@ public sealed class AuthService
                     request);
 
         if (!response.IsSuccessStatusCode)
+        {
             return false;
+        }
 
         var dto =
             await response.Content
-                .ReadFromJsonAsync<LoginResponseDto>();
+                .ReadFromJsonAsync<
+                    LoginResponseDto>();
 
         if (dto is null)
+        {
             return false;
+        }
 
         await _tokenStorage
             .SetTokenAsync(
                 dto.Token);
+
+        if (!string.IsNullOrWhiteSpace(
+                dto.RefreshToken))
+        {
+            await _tokenStorage
+                .SetRefreshTokenAsync(
+                    dto.RefreshToken);
+        }
+
+        if (!string.IsNullOrWhiteSpace(
+                dto.Role))
+        {
+            await _tokenStorage
+                .SetRoleAsync(
+                    dto.Role);
+        }
 
         return true;
     }
@@ -54,5 +83,11 @@ public sealed class AuthService
     {
         await _tokenStorage
             .RemoveTokenAsync();
+
+        await _tokenStorage
+            .RemoveRefreshTokenAsync();
+
+        await _tokenStorage
+            .RemoveRoleAsync();
     }
 }

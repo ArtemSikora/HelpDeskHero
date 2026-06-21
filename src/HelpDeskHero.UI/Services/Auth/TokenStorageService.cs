@@ -31,4 +31,44 @@ public sealed class TokenStorageService
         return _js.InvokeVoidAsync(
             "authStorage.removeToken");
     }
+
+    public ValueTask<string?> GetRefreshTokenAsync()
+    {
+        return _js.InvokeAsync<string?>(
+            "authStorage.getRefreshToken");
+    }
+
+    public ValueTask SetRefreshTokenAsync(
+        string token)
+    {
+        return _js.InvokeVoidAsync(
+            "authStorage.setRefreshToken",
+            token);
+    }
+
+    public ValueTask RemoveRefreshTokenAsync()
+    {
+        return _js.InvokeVoidAsync(
+            "authStorage.removeRefreshToken");
+    }
+
+    public ValueTask<string?> GetRoleAsync()
+    {
+        return _js.InvokeAsync<string?>(
+            "authStorage.getRole");
+    }
+
+    public ValueTask SetRoleAsync(
+        string role)
+    {
+        return _js.InvokeVoidAsync(
+            "authStorage.setRole",
+            role);
+    }
+
+    public ValueTask RemoveRoleAsync()
+    {
+        return _js.InvokeVoidAsync(
+            "authStorage.removeRole");
+    }
 }

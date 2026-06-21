@@ -1,9 +1,13 @@
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @page "/tickets"
 
 @using HelpDeskHero.Shared.Contracts.Tickets
 @using HelpDeskHero.UI.Services.Api
+@using HelpDeskHero.UI.Services.Auth
 
 @inject TicketApiClient TicketApi
+@inject TokenStorageService TokenStorage
 
 <h3>Tickets</h3>
 
@@ -24,9 +28,9 @@
 <select class="form-control mb-3"
         @bind="_statusFilter">
 
-    <option>All</option>
-    <option>New</option>
-    <option>Closed</option>
+<option>All</option>
+<option>New</option>
+<option>Closed</option>
 
 </select>
 
@@ -42,9 +46,9 @@
 <select class="form-control mb-3"
         @bind="_priority">
 
-    <option>Low</option>
-    <option>Medium</option>
-    <option>High</option>
+<option>Low</option>
+<option>Medium</option>
+<option>High</option>
 
 </select>
 
@@ -131,14 +135,18 @@ Anuluj
 }
 else
 {
+@if (CanEdit)
+{
 <button class="btn btn-warning me-2"
         @onclick="() => StartEdit(ticket)">
 
 Edytuj
 
 </button>
+}
 
-@if (ticket.Status != "Closed")
+@if (CanClose
+&& ticket.Status != "Closed")
 {
 <button class="btn btn-success me-2"
         @onclick="() => Close(ticket.Id)">
@@ -148,12 +156,15 @@ Zamknij
 </button>
 }
 
+@if (CanDelete)
+{
 <button class="btn btn-danger"
         @onclick="() => Delete(ticket.Id)">
 
 Usuń
 
 </button>
+}
 }
 
 </td>
@@ -181,8 +192,20 @@ string _statusFilter = "All";
 int? _editId;
 
 string _editTitle = "";
-
 string _editPriority = "";
+
+string? _role;
+
+bool CanEdit =>
+    _role == "Admin"
+    || _role == "Agent";
+
+bool CanClose =>
+    _role == "Admin"
+    || _role == "Agent";
+
+bool CanDelete =>
+    _role == "Admin";
 
 IEnumerable<TicketDto> FilteredTickets =>
     _statusFilter == "All"
@@ -190,35 +213,61 @@ IEnumerable<TicketDto> FilteredTickets =>
         : _tickets.Where(
             x => x.Status == _statusFilter);
 
-protected override async Task OnInitializedAsync()
+protected override async Task OnAfterRenderAsync(
+    bool firstRender)
 {
+    if (!firstRender)
+    {
+        return;
+    }
+
+    await Task.Delay(
+        800);
+
+    _role =
+        await TokenStorage
+            .GetRoleAsync();
+
     await Load();
+
+    StateHasChanged();
 }
 
 async Task Load()
 {
-    _tickets =
-        (await TicketApi.GetAllAsync())
-        .ToList();
+    try
+    {
+        _tickets =
+            (await TicketApi
+                .GetAllAsync())
+            .ToList();
+
+        _error = "";
+    }
+    catch
+    {
+        await Task.Delay(
+            500);
+
+        try
+        {
+            _tickets =
+                (await TicketApi
+                    .GetAllAsync())
+                .ToList();
+
+            _error = "";
+        }
+        catch
+        {
+            _error =
+                "Nie udało się pobrać ticketów.";
+        }
+    }
 }
 
 async Task CreateTicket()
 {
-    _error = "";
-    _success = "";
-
-    if (string.IsNullOrWhiteSpace(_title))
-    {
-        _error = "Title jest wymagany";
-        return;
-    }
-
-    if (string.IsNullOrWhiteSpace(_description))
-    {
-        _error = "Description jest wymagany";
-        return;
-    }
-
     await TicketApi.CreateAsync(
         new()
         {
@@ -229,8 +278,6 @@ async Task CreateTicket()
 
     _title = "";
     _description = "";
-
-    _success = "Ticket został dodany";
 
     await Load();
 }
@@ -256,22 +303,25 @@ void CancelEdit()
 async Task SaveEdit()
 {
     var ticket =
-        _tickets
-            .First(
-                x => x.Id == _editId);
+        _tickets.First(
+            x => x.Id == _editId);
 
     await TicketApi.UpdateAsync(
         ticket.Id,
         new UpdateTicketDto
         {
-            Title = _editTitle,
-            Description = ticket.Description,
-            Priority = _editPriority,
-            Status = ticket.Status
-        });
+            Title =
+                _editTitle,
 
-    _success =
-        "Ticket zapisany";
+            Description =
+                ticket.Description,
+
+            Priority =
+                _editPriority,
+
+            Status =
+                ticket.Status
+        });
 
     _editId =
         null;
@@ -285,9 +335,6 @@ async Task Close(
     await TicketApi.CloseAsync(
         id);
 
-    _success =
-        "Ticket zamknięty";
-
     await Load();
 }
 
@@ -296,9 +343,6 @@ async Task Delete(
 {
     await TicketApi.DeleteAsync(
         id);
-
-    _success =
-        "Ticket usunięty";
 
     await Load();
 }

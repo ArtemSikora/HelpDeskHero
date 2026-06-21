@@ -11,7 +11,8 @@ namespace HelpDeskHero.Api.Controllers;
 public sealed class AuthController
     : ControllerBase
 {
-    private readonly ITokenService _tokenService;
+    private readonly ITokenService
+        _tokenService;
 
     public AuthController(
         ITokenService tokenService)
@@ -33,33 +34,16 @@ public sealed class AuthController
             return Unauthorized();
         }
 
-        var token =
-            _tokenService
-                .CreateAccessToken(
-                    user);
-
         return Ok(
-            new LoginResponseDto
-            {
-                Token =
-                    token,
-
-                ExpiresAtUtc =
-                    DateTime.UtcNow
-                        .AddMinutes(15),
-
-                UserName =
-                    user.UserName,
-
-                Role =
-                    user.Role
-            });
+            CreateLoginResponse(
+                user));
     }
 
     [HttpPost("refresh")]
     [AllowAnonymous]
-    public ActionResult<RefreshTokenResponseDto> Refresh(
-        RefreshTokenRequestDto dto)
+    public ActionResult<RefreshTokenResponseDto>
+        Refresh(
+            RefreshTokenRequestDto dto)
     {
         if (string.IsNullOrWhiteSpace(
                 dto.RefreshToken))
@@ -67,20 +51,35 @@ public sealed class AuthController
             return Unauthorized();
         }
 
+        var user =
+            new AppUser
+            {
+                Id = 1,
+                UserName = "admin",
+                Role = "Admin"
+            };
+
+        var accessToken =
+            _tokenService
+                .CreateAccessToken(
+                    user);
+
+        var refreshToken =
+            _tokenService
+                .CreateRefreshToken(
+                    user);
+
         return Ok(
             new RefreshTokenResponseDto
             {
                 Token =
-                    Guid.NewGuid()
-                        .ToString(),
-
-                ExpiresAtUtc =
-                    DateTime.UtcNow
-                        .AddMinutes(15),
+                    accessToken,
 
                 RefreshToken =
-                    Guid.NewGuid()
-                        .ToString()
+                    refreshToken.Token,
+
+                ExpiresAtUtc =
+                    refreshToken.ExpiresAtUtc
             });
     }
 
@@ -88,16 +87,45 @@ public sealed class AuthController
     [Authorize]
     public IActionResult Revoke()
     {
-        return Ok(
-            new
-            {
-                Message =
-                    "Refresh token revoked"
-            });
+        return Ok();
     }
 
-    private static AppUser? GetUser(
-        LoginRequestDto dto)
+    private LoginResponseDto
+        CreateLoginResponse(
+            AppUser user)
+    {
+        var accessToken =
+            _tokenService
+                .CreateAccessToken(
+                    user);
+
+        var refreshToken =
+            _tokenService
+                .CreateRefreshToken(
+                    user);
+
+        return new LoginResponseDto
+        {
+            Token =
+                accessToken,
+
+            RefreshToken =
+                refreshToken.Token,
+
+            ExpiresAtUtc =
+                refreshToken.ExpiresAtUtc,
+
+            UserName =
+                user.UserName,
+
+            Role =
+                user.Role
+        };
+    }
+
+    private static AppUser?
+        GetUser(
+            LoginRequestDto dto)
     {
         if (dto.UserName == "admin"
             && dto.Password == "Admin123!")
