@@ -28,9 +28,9 @@
 <select class="form-control mb-3"
         @bind="_statusFilter">
 
-<option>All</option>
-<option>New</option>
-<option>Closed</option>
+    <option>All</option>
+    <option>New</option>
+    <option>Closed</option>
 
 </select>
 
@@ -46,16 +46,16 @@
 <select class="form-control mb-3"
         @bind="_priority">
 
-<option>Low</option>
-<option>Medium</option>
-<option>High</option>
+    <option>Low</option>
+    <option>Medium</option>
+    <option>High</option>
 
 </select>
 
 <button class="btn btn-primary mb-4"
         @onclick="CreateTicket">
 
-Dodaj Ticket
+    Dodaj Ticket
 
 </button>
 
@@ -194,6 +194,9 @@ int? _editId;
 string _editTitle = "";
 string _editPriority = "";
 
+string _editRowVersion =
+    "";
+
 string? _role;
 
 bool CanEdit =>
@@ -242,27 +245,13 @@ async Task Load()
                 .GetAllAsync())
             .ToList();
 
-        _error = "";
+        _error =
+            "";
     }
     catch
     {
-        await Task.Delay(
-            500);
-
-        try
-        {
-            _tickets =
-                (await TicketApi
-                    .GetAllAsync())
-                .ToList();
-
-            _error = "";
-        }
-        catch
-        {
-            _error =
-                "Nie udało się pobrać ticketów.";
-        }
+        _error =
+            "Nie udało się pobrać ticketów.";
     }
 }
 
@@ -271,9 +260,14 @@ async Task CreateTicket()
     await TicketApi.CreateAsync(
         new()
         {
-            Title = _title,
-            Description = _description,
-            Priority = _priority
+            Title =
+                _title,
+
+            Description =
+                _description,
+
+            Priority =
+                _priority
         });
 
     _title = "";
@@ -293,11 +287,18 @@ void StartEdit(
 
     _editPriority =
         ticket.Priority;
+
+    _editRowVersion =
+        ticket.RowVersionBase64;
 }
 
 void CancelEdit()
 {
-    _editId = null;
+    _editId =
+        null;
+
+    _editRowVersion =
+        "";
 }
 
 async Task SaveEdit()
@@ -306,25 +307,48 @@ async Task SaveEdit()
         _tickets.First(
             x => x.Id == _editId);
 
-    await TicketApi.UpdateAsync(
-        ticket.Id,
-        new UpdateTicketDto
-        {
-            Title =
-                _editTitle,
+    try
+    {
+        await TicketApi.UpdateAsync(
+            ticket.Id,
+            new UpdateTicketDto
+            {
+                Title =
+                    _editTitle,
 
-            Description =
-                ticket.Description,
+                Description =
+                    ticket.Description,
 
-            Priority =
-                _editPriority,
+                Priority =
+                    _editPriority,
 
-            Status =
-                ticket.Status
-        });
+                Status =
+                    ticket.Status,
+
+                RowVersionBase64 =
+                    _editRowVersion
+            });
+
+        _success =
+            "Ticket zapisany.";
+
+        _error =
+            "";
+    }
+    catch
+    {
+        _error =
+            "Ticket został zmieniony przez innego użytkownika.";
+
+        _success =
+            "";
+    }
 
     _editId =
         null;
+
+    _editRowVersion =
+        "";
 
     await Load();
 }

@@ -4,9 +4,11 @@ namespace HelpDeskHero.Api.Security;
 
 public interface ITokenService
 {
-    string CreateAccessToken(
+    Task<(string token, DateTime expiresAtUtc)> CreateAccessTokenAsync(
         ApplicationUser user);
 
-    RefreshToken CreateRefreshToken(
-        ApplicationUser user);
+    (string rawToken, string tokenHash) CreateRefreshToken();
+
+    string ComputeRefreshTokenHash(
+        string rawToken);
 }

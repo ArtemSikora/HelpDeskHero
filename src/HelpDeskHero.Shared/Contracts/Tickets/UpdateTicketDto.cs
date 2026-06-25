@@ -37,4 +37,8 @@ public sealed class UpdateTicketDto
         get;
         set;
     } = "Medium";
+
+    [Required]
+    public string RowVersionBase64 { get; set; } =
+        string.Empty;
 }

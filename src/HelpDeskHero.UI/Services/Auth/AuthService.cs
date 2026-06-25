@@ -32,7 +32,10 @@ public sealed class AuthService
                     userName,
 
                 Password =
-                    password
+                    password,
+
+                DeviceName =
+                    "Blazor WebAssembly"
             };
 
         var response =
@@ -58,7 +61,10 @@ public sealed class AuthService
 
         await _tokenStorage
             .SetTokenAsync(
-                dto.Token);
+                string.IsNullOrWhiteSpace(
+                    dto.AccessToken)
+                    ? dto.Token
+                    : dto.AccessToken);
 
         if (!string.IsNullOrWhiteSpace(
                 dto.RefreshToken))

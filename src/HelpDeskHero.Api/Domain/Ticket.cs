@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace HelpDeskHero.Api.Domain;
 
 public sealed class Ticket
@@ -20,4 +22,16 @@ public sealed class Ticket
         "Medium";
 
     public DateTime CreatedAtUtc { get; set; }
+
+    public DateTime? UpdatedAtUtc { get; set; }
+
+    public DateTime? DeletedAtUtc { get; set; }
+
+    public string? DeletedByUserId { get; set; }
+
+    public bool IsDeleted { get; set; }
+
+    [ConcurrencyCheck]
+    public Guid RowVersion { get; set; } =
+        Guid.NewGuid();
 }

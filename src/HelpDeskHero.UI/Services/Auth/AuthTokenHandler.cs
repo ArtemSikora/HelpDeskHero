@@ -73,7 +73,10 @@ public sealed class AuthTokenHandler
                     new RefreshTokenRequestDto
                     {
                         RefreshToken =
-                            refreshToken
+                            refreshToken,
+
+                        DeviceName =
+                            "Blazor WebAssembly"
                     });
 
         if (!refreshResponse
@@ -104,7 +107,10 @@ public sealed class AuthTokenHandler
 
         await _tokenStorage
             .SetTokenAsync(
-                dto.Token);
+                string.IsNullOrWhiteSpace(
+                    dto.AccessToken)
+                    ? dto.Token
+                    : dto.AccessToken);
 
         await _tokenStorage
             .SetRefreshTokenAsync(
@@ -125,7 +131,10 @@ public sealed class AuthTokenHandler
         request.Headers.Authorization =
             new AuthenticationHeaderValue(
                 "Bearer",
-                dto.Token);
+                string.IsNullOrWhiteSpace(
+                    dto.AccessToken)
+                    ? dto.Token
+                    : dto.AccessToken);
 
         return await base.SendAsync(
             request,

@@ -56,7 +56,10 @@ public sealed class JwtAuthenticationStateProvider
                             new RefreshTokenRequestDto
                             {
                                 RefreshToken =
-                                    refreshToken
+                                    refreshToken,
+
+                                DeviceName =
+                                    "Blazor WebAssembly"
                             });
 
                 if (response.IsSuccessStatusCode)
@@ -71,14 +74,20 @@ public sealed class JwtAuthenticationStateProvider
                     {
                         await _tokenStorage
                             .SetTokenAsync(
-                                dto.Token);
+                                string.IsNullOrWhiteSpace(
+                                    dto.AccessToken)
+                                    ? dto.Token
+                                    : dto.AccessToken);
 
                         await _tokenStorage
                             .SetRefreshTokenAsync(
                                 dto.RefreshToken);
 
                         token =
-                            dto.Token;
+                            string.IsNullOrWhiteSpace(
+                                dto.AccessToken)
+                                ? dto.Token
+                                : dto.AccessToken;
                     }
                 }
             }

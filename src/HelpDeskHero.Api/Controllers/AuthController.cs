@@ -3,6 +3,7 @@ using HelpDeskHero.Api.Security;
 using HelpDeskHero.Shared.Contracts.Auth;
 
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HelpDeskHero.Api.Controllers;
@@ -15,36 +16,60 @@ public sealed class AuthController
     private readonly ITokenService
         _tokenService;
 
+    private readonly RefreshTokenService
+        _refreshTokenService;
+
+    private readonly UserManager<ApplicationUser>
+        _userManager;
+
     public AuthController(
-        ITokenService tokenService)
+        ITokenService tokenService,
+        RefreshTokenService refreshTokenService,
+        UserManager<ApplicationUser> userManager)
     {
         _tokenService =
             tokenService;
+
+        _refreshTokenService =
+            refreshTokenService;
+
+        _userManager =
+            userManager;
     }
 
     [HttpPost("login")]
     [AllowAnonymous]
-    public ActionResult<LoginResponseDto> Login(
-        LoginRequestDto dto)
+    public async Task<ActionResult<LoginResponseDto>> Login(
+        LoginRequestDto dto,
+        CancellationToken ct)
     {
         var user =
-            GetUser(dto);
+            await _userManager
+                .FindByNameAsync(
+                    dto.UserName);
 
-        if (user is null)
+        if (user is null
+            || !user.IsActive
+            || !await _userManager.CheckPasswordAsync(
+                user,
+                dto.Password))
         {
             return Unauthorized();
         }
 
         return Ok(
-            CreateLoginResponse(
-                user));
+            await CreateLoginResponseAsync(
+                user,
+                dto.DeviceName,
+                ct));
     }
 
     [HttpPost("refresh")]
     [AllowAnonymous]
-    public ActionResult<RefreshTokenResponseDto>
+    public async Task<ActionResult<RefreshTokenResponseDto>>
         Refresh(
-            RefreshTokenRequestDto dto)
+            RefreshTokenRequestDto dto,
+            CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(
                 dto.RefreshToken))
@@ -52,112 +77,139 @@ public sealed class AuthController
             return Unauthorized();
         }
 
-        var user =
-            new ApplicationUser
-            {
-                UserName = "admin",
-                Role = "Admin"
-            };
+        var existingToken =
+            await _refreshTokenService
+                .GetActiveByRawTokenAsync(
+                    dto.RefreshToken,
+                    ct);
 
-        var accessToken =
-            _tokenService
-                .CreateAccessToken(
-                    user);
+        if (existingToken?.User is null
+            || !existingToken.User.IsActive)
+        {
+            return Unauthorized();
+        }
 
-        var refreshToken =
-            _tokenService
-                .CreateRefreshToken(
-                    user);
+        await _refreshTokenService
+            .RevokeAsync(
+                existingToken,
+                ct);
+
+        var (accessToken, accessExpiresAtUtc) =
+            await _tokenService
+                .CreateAccessTokenAsync(
+                    existingToken.User);
+
+        var (refreshToken, refreshExpiresAtUtc) =
+            await _refreshTokenService
+                .CreateAsync(
+                    existingToken.UserId,
+                    dto.DeviceName,
+                    HttpContext.Connection.RemoteIpAddress?.ToString(),
+                    ct);
 
         return Ok(
             new RefreshTokenResponseDto
             {
+                AccessToken =
+                    accessToken,
+
                 Token =
                     accessToken,
 
                 RefreshToken =
-                    refreshToken.TokenHash,
+                    refreshToken,
+
+                AccessTokenExpiresAtUtc =
+                    accessExpiresAtUtc,
 
                 ExpiresAtUtc =
-                    refreshToken.ExpiresAtUtc
+                    accessExpiresAtUtc,
+
+                RefreshTokenExpiresAtUtc =
+                    refreshExpiresAtUtc
             });
     }
 
     [HttpPost("revoke")]
     [Authorize]
-    public IActionResult Revoke()
+    public async Task<IActionResult> Revoke(
+        RefreshTokenRequestDto dto,
+        CancellationToken ct)
     {
+        var refreshToken =
+            await _refreshTokenService
+                .GetActiveByRawTokenAsync(
+                    dto.RefreshToken,
+                    ct);
+
+        if (refreshToken is not null)
+        {
+            await _refreshTokenService
+                .RevokeAsync(
+                    refreshToken,
+                    ct);
+        }
+
         return Ok();
     }
 
-    private LoginResponseDto
-        CreateLoginResponse(
-            ApplicationUser user)
+    private async Task<LoginResponseDto>
+        CreateLoginResponseAsync(
+            ApplicationUser user,
+            string deviceName,
+            CancellationToken ct)
     {
-        var accessToken =
-            _tokenService
-                .CreateAccessToken(
+        var (accessToken, accessExpiresAtUtc) =
+            await _tokenService
+                .CreateAccessTokenAsync(
                     user);
 
-        var refreshToken =
-            _tokenService
-                .CreateRefreshToken(
-                    user);
+        var (refreshToken, refreshExpiresAtUtc) =
+            await _refreshTokenService
+                .CreateAsync(
+                    user.Id,
+                    deviceName,
+                    HttpContext.Connection.RemoteIpAddress?.ToString(),
+                    ct);
+
+        var roles =
+            (await _userManager.GetRolesAsync(
+                user))
+            .ToArray();
 
         return new LoginResponseDto
         {
+            AccessToken =
+                accessToken,
+
             Token =
                 accessToken,
 
             RefreshToken =
-                refreshToken.TokenHash,
+                refreshToken,
+
+            AccessTokenExpiresAtUtc =
+                accessExpiresAtUtc,
 
             ExpiresAtUtc =
-                refreshToken.ExpiresAtUtc,
+                accessExpiresAtUtc,
+
+            RefreshTokenExpiresAtUtc =
+                refreshExpiresAtUtc,
 
             UserName =
                 user.UserName
                 ?? "",
 
+            DisplayName =
+                user.DisplayName,
+
             Role =
-                user.Role
+                roles.FirstOrDefault()
+                ?? user.Role,
+
+            Roles =
+                roles
         };
-    }
-
-    private static ApplicationUser?
-        GetUser(
-            LoginRequestDto dto)
-    {
-        if (dto.UserName == "admin"
-            && dto.Password == "Admin123!")
-        {
-            return new ApplicationUser
-            {
-                UserName = "admin",
-                Role = "Admin"
-            };
-        }
-
-        if (dto.UserName == "agent"
-            && dto.Password == "Agent123!")
-        {
-            return new ApplicationUser
-            {
-                UserName = "agent",
-                Role = "Agent"
-            };
-        }
-
-        if (dto.UserName == "user"
-            && dto.Password == "User123!")
-        {
-            return new ApplicationUser
-            {
-                UserName = "user",
-                Role = "User"
-            };
-        }
-
-        return null;
     }
 }

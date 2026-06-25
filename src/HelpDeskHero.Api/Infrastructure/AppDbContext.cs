@@ -36,6 +36,9 @@ public sealed class AppDbContext
                     x.HasKey(
                         t => t.Id);
 
+                    x.HasQueryFilter(
+                        t => !t.IsDeleted);
+
                     x.Property(
                         t => t.Number)
                         .HasMaxLength(
@@ -51,17 +54,24 @@ public sealed class AppDbContext
                     x.Property(
                         t => t.Description)
                         .HasMaxLength(
-                            4000);
+                            4000)
+                        .IsRequired();
 
                     x.Property(
                         t => t.Priority)
                         .HasMaxLength(
-                            30);
+                            30)
+                        .IsRequired();
 
                     x.Property(
                         t => t.Status)
                         .HasMaxLength(
-                            30);
+                            30)
+                        .IsRequired();
+
+                    x.Property(
+                        t => t.RowVersion)
+                        .IsConcurrencyToken();
                 });
 
         modelBuilder
@@ -74,7 +84,7 @@ public sealed class AppDbContext
                     x.Property(
                         a => a.Action)
                         .HasMaxLength(
-                            50)
+                            100)
                         .IsRequired();
 
                     x.Property(
@@ -86,13 +96,18 @@ public sealed class AppDbContext
                     x.Property(
                         a => a.EntityId)
                         .HasMaxLength(
-                            50)
+                            100)
                         .IsRequired();
 
                     x.Property(
                         a => a.UserName)
                         .HasMaxLength(
-                            100);
+                            256);
+
+                    x.Property(
+                        a => a.IpAddress)
+                        .HasMaxLength(
+                            64);
                 });
 
         modelBuilder
@@ -107,6 +122,25 @@ public sealed class AppDbContext
                         .HasMaxLength(
                             256)
                         .IsRequired();
+
+                    x.Property(
+                        r => r.DeviceName)
+                        .HasMaxLength(
+                            200)
+                        .IsRequired();
+
+                    x.Property(
+                        r => r.IpAddress)
+                        .HasMaxLength(
+                            64);
+
+                    x.HasOne(
+                            r => r.User)
+                        .WithMany()
+                        .HasForeignKey(
+                            r => r.UserId)
+                        .OnDelete(
+                            DeleteBehavior.Cascade);
                 });
     }
 }

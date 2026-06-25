@@ -2,6 +2,9 @@ namespace HelpDeskHero.Shared.Contracts.Auth;
 
 public sealed class LoginResponseDto
 {
+    public string AccessToken { get; set; } =
+        string.Empty;
+
     public string Token
     {
         get;
@@ -14,11 +17,15 @@ public sealed class LoginResponseDto
         set;
     }
 
+    public DateTime AccessTokenExpiresAtUtc { get; set; }
+
     public string RefreshToken
     {
         get;
         set;
     } = string.Empty;
+
+    public DateTime RefreshTokenExpiresAtUtc { get; set; }
 
     public string UserName
     {
@@ -26,9 +33,14 @@ public sealed class LoginResponseDto
         set;
     } = string.Empty;
 
+    public string DisplayName { get; set; } =
+        string.Empty;
+
     public string Role
     {
         get;
         set;
     } = string.Empty;
+
+    public string[] Roles { get; set; } = [];
 }

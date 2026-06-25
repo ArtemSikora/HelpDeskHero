@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using HelpDeskHero.Shared.Contracts.Common;
 using HelpDeskHero.Shared.Contracts.Tickets;
 
 namespace HelpDeskHero.UI.Services.Api;
@@ -16,10 +17,10 @@ public sealed class TicketApiClient
     {
         var result =
             await _httpClient
-                .GetFromJsonAsync<List<TicketDto>>(
+                .GetFromJsonAsync<PagedResultDto<TicketDto>>(
                     "api/Tickets");
 
-        return result ?? [];
+        return result?.Items ?? [];
     }
 
     public async Task CreateAsync(
@@ -76,7 +77,10 @@ public sealed class TicketApiClient
                     ticket.Priority,
 
                 Status =
-                    "Closed"
+                    "Closed",
+
+                RowVersionBase64 =
+                    ticket.RowVersionBase64
             };
 
         await UpdateAsync(

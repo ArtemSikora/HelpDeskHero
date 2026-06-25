@@ -5,6 +5,7 @@ using System.Text;
 
 using HelpDeskHero.Api.Domain;
 
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -15,27 +16,53 @@ public sealed class TokenService
 {
     private readonly JwtOptions _jwt;
 
+    private readonly UserManager<ApplicationUser>
+        _userManager;
+
     public TokenService(
-        IOptions<JwtOptions> jwt)
+        IOptions<JwtOptions> jwt,
+        UserManager<ApplicationUser> userManager)
     {
         _jwt =
             jwt.Value;
+
+        _userManager =
+            userManager;
     }
 
-    public string CreateAccessToken(
+    public async Task<(string token, DateTime expiresAtUtc)> CreateAccessTokenAsync(
         ApplicationUser user)
     {
+        var roles =
+            await _userManager
+                .GetRolesAsync(
+                    user);
+
         var claims =
             new List<Claim>
             {
+                new(
+                    JwtRegisteredClaimNames.Sub,
+                    user.Id),
+
                 new(
                     ClaimTypes.Name,
                     user.UserName ?? ""),
 
                 new(
-                    ClaimTypes.Role,
-                    user.Role ?? "User")
+                    ClaimTypes.NameIdentifier,
+                    user.Id),
+
+                new(
+                    "display_name",
+                    user.DisplayName)
             };
+
+        claims.AddRange(
+            roles.Select(
+                role => new Claim(
+                    ClaimTypes.Role,
+                    role)));
 
         var key =
             new SymmetricSecurityKey(
@@ -58,34 +85,51 @@ public sealed class TokenService
                 claims:
                     claims,
 
+                notBefore:
+                    DateTime.UtcNow,
+
                 expires:
-                    DateTime.UtcNow
-                        .AddMinutes(
-                            _jwt.AccessTokenMinutes),
+                    DateTime.UtcNow.AddMinutes(
+                        _jwt.AccessTokenMinutes),
 
                 signingCredentials:
                     credentials);
 
-        return new JwtSecurityTokenHandler()
+        var tokenValue =
+            new JwtSecurityTokenHandler()
             .WriteToken(
                 token);
+
+        return (
+            tokenValue,
+            token.ValidTo);
     }
 
-    public RefreshToken CreateRefreshToken(
-        ApplicationUser user)
+    public (string rawToken, string tokenHash) CreateRefreshToken()
     {
-        return new RefreshToken
-        {
-            TokenHash =
-                Convert.ToBase64String(
-                    RandomNumberGenerator
-                        .GetBytes(
-                            64)),
+        var rawToken =
+            Convert.ToBase64String(
+                RandomNumberGenerator.GetBytes(
+                    64));
 
-            ExpiresAtUtc =
-                DateTime.UtcNow
-                    .AddDays(
-                        _jwt.RefreshTokenDays)
-        };
+        return (
+            rawToken,
+            ComputeRefreshTokenHash(
+                rawToken));
+    }
+
+    public string ComputeRefreshTokenHash(
+        string rawToken)
+    {
+        var bytes =
+            Encoding.UTF8.GetBytes(
+                rawToken);
+
+        var hash =
+            SHA256.HashData(
+                bytes);
+
+        return Convert.ToHexString(
+            hash);
     }
 }

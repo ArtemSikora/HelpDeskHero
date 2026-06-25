@@ -1,5 +1,7 @@
 using HelpDeskHero.Api.Domain;
+using HelpDeskHero.Api.Infrastructure;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace HelpDeskHero.Api.Infrastructure.Persistence;
 
@@ -10,6 +12,14 @@ public static class DbSeeder
     {
         using var scope =
             services.CreateScope();
+
+        var db =
+            scope.ServiceProvider
+                .GetRequiredService<
+                    AppDbContext>();
+
+        await db.Database
+            .MigrateAsync();
 
         var roleManager =
             scope.ServiceProvider
@@ -25,6 +35,7 @@ public static class DbSeeder
             new[]
             {
                 "Admin",
+                "Manager",
                 "Agent",
                 "User"
             };

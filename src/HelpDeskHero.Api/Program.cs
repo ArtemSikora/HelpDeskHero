@@ -52,15 +52,15 @@ builder.Services
         {
             options.Password
                 .RequireDigit =
-                false;
+                true;
 
             options.Password
                 .RequireUppercase =
-                false;
+                true;
 
             options.Password
                 .RequireLowercase =
-                false;
+                true;
 
             options.Password
                 .RequireNonAlphanumeric =
@@ -68,7 +68,11 @@ builder.Services
 
             options.Password
                 .RequiredLength =
-                6;
+                8;
+
+            options.User
+                .RequireUniqueEmail =
+                false;
         })
     .AddEntityFrameworkStores<
         AppDbContext>()
@@ -84,6 +88,10 @@ builder.Services
     .AddScoped<
         ITokenService,
         TokenService>();
+
+builder.Services
+    .AddScoped<
+        RefreshTokenService>();
 
 builder.Services
     .AddScoped<
