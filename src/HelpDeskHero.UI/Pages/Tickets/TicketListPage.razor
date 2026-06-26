@@ -5,11 +5,27 @@
 @using HelpDeskHero.Shared.Contracts.Tickets
 @using HelpDeskHero.UI.Services.Api
 @using HelpDeskHero.UI.Services.Auth
+@using Microsoft.JSInterop
 
 @inject TicketApiClient TicketApi
 @inject TokenStorageService TokenStorage
+@inject IJSRuntime JS
 
-<h3>Tickets</h3>
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <h3>Tickets</h3>
+
+    <div>
+        <button class="btn btn-outline-secondary me-2"
+                @onclick="Load">
+            Refresh
+        </button>
+
+        <button class="btn btn-outline-primary"
+                @onclick="ExportCsv">
+            Export CSV
+        </button>
+    </div>
+</div>
 
 @if (!string.IsNullOrWhiteSpace(_error))
 {
@@ -25,350 +41,358 @@
     </div>
 }
 
-<select class="form-control mb-3"
-        @bind="_statusFilter">
+<div class="row g-2 mb-3">
+    <div class="col-md-4">
+        <select class="form-control"
+                @bind="_statusFilter">
+            <option>All</option>
+            <option>New</option>
+            <option>Closed</option>
+        </select>
+    </div>
 
-    <option>All</option>
-    <option>New</option>
-    <option>Closed</option>
+    @if (CanDelete)
+    {
+        <div class="col-md-4">
+            <select class="form-control"
+                    @bind="_deletedFilter"
+                    @bind:after="Load">
+                <option value="active">Active</option>
+                <option value="deleted">Deleted</option>
+                <option value="all">All</option>
+            </select>
+        </div>
+    }
+</div>
 
-</select>
+<div class="border rounded p-3 mb-4">
+    <div class="row g-2">
+        <div class="col-md-4">
+            <input class="form-control"
+                   placeholder="Title"
+                   @bind="_title" />
+        </div>
 
-<input class="form-control mb-2"
-       placeholder="Title"
-       @bind="_title" />
+        <div class="col-md-5">
+            <input class="form-control"
+                   placeholder="Description"
+                   @bind="_description" />
+        </div>
 
-<textarea class="form-control mb-2"
-          placeholder="Description"
-          @bind="_description">
-</textarea>
+        <div class="col-md-2">
+            <select class="form-control"
+                    @bind="_priority">
+                <option>Low</option>
+                <option>Medium</option>
+                <option>High</option>
+            </select>
+        </div>
 
-<select class="form-control mb-3"
-        @bind="_priority">
+        <div class="col-md-1">
+            <button class="btn btn-primary w-100"
+                    @onclick="CreateTicket">
+                Add
+            </button>
+        </div>
+    </div>
+</div>
 
-    <option>Low</option>
-    <option>Medium</option>
-    <option>High</option>
+<table class="table table-sm align-middle">
+    <thead>
+    <tr>
+        <th>Number</th>
+        <th>Title</th>
+        <th>Status</th>
+        <th>Priority</th>
+        @if (CanDelete)
+        {
+            <th>Deleted</th>
+        }
+        <th></th>
+    </tr>
+    </thead>
 
-</select>
+    <tbody>
+    @foreach (var ticket in FilteredTickets)
+    {
+        <tr class="@(ticket.IsDeleted ? "table-secondary" : "")">
+            <td>@ticket.Number</td>
 
-<button class="btn btn-primary mb-4"
-        @onclick="CreateTicket">
+            <td>
+                @if (_editId == ticket.Id)
+                {
+                    <input class="form-control"
+                           @bind="_editTitle" />
+                }
+                else
+                {
+                    @ticket.Title
+                }
+            </td>
 
-    Dodaj Ticket
+            <td>@ticket.Status</td>
 
-</button>
+            <td>
+                @if (_editId == ticket.Id)
+                {
+                    <select class="form-control"
+                            @bind="_editPriority">
+                        <option>Low</option>
+                        <option>Medium</option>
+                        <option>High</option>
+                    </select>
+                }
+                else
+                {
+                    @ticket.Priority
+                }
+            </td>
 
-<table class="table">
+            @if (CanDelete)
+            {
+                <td>
+                    @(ticket.IsDeleted ? ticket.DeletedAtUtc?.ToLocalTime().ToString("g") : "")
+                </td>
+            }
 
-<thead>
-<tr>
-<th>Number</th>
-<th>Title</th>
-<th>Status</th>
-<th>Priority</th>
-<th></th>
-</tr>
-</thead>
+            <td class="text-end">
+                @if (_editId == ticket.Id)
+                {
+                    <button class="btn btn-primary btn-sm me-2"
+                            @onclick="SaveEdit">
+                        Save
+                    </button>
 
-<tbody>
+                    <button class="btn btn-secondary btn-sm"
+                            @onclick="CancelEdit">
+                        Cancel
+                    </button>
+                }
+                else if (ticket.IsDeleted)
+                {
+                    @if (CanDelete)
+                    {
+                        <button class="btn btn-outline-success btn-sm"
+                                @onclick="() => Restore(ticket.Id)">
+                            Restore
+                        </button>
+                    }
+                }
+                else
+                {
+                    @if (CanEdit)
+                    {
+                        <button class="btn btn-warning btn-sm me-2"
+                                @onclick="() => StartEdit(ticket)">
+                            Edit
+                        </button>
+                    }
 
-@foreach (var ticket in FilteredTickets)
-{
-<tr>
+                    @if (CanClose && ticket.Status != "Closed")
+                    {
+                        <button class="btn btn-success btn-sm me-2"
+                                @onclick="() => Close(ticket.Id)">
+                            Close
+                        </button>
+                    }
 
-<td>@ticket.Number</td>
-
-<td>
-
-@if (_editId == ticket.Id)
-{
-<input class="form-control"
-       @bind="_editTitle" />
-}
-else
-{
-@ticket.Title
-}
-
-</td>
-
-<td>@ticket.Status</td>
-
-<td>
-
-@if (_editId == ticket.Id)
-{
-<select class="form-control"
-        @bind="_editPriority">
-
-<option>Low</option>
-<option>Medium</option>
-<option>High</option>
-
-</select>
-}
-else
-{
-@ticket.Priority
-}
-
-</td>
-
-<td>
-
-@if (_editId == ticket.Id)
-{
-<button class="btn btn-primary me-2"
-        @onclick="SaveEdit">
-
-Zapisz
-
-</button>
-
-<button class="btn btn-secondary"
-        @onclick="CancelEdit">
-
-Anuluj
-
-</button>
-}
-else
-{
-@if (CanEdit)
-{
-<button class="btn btn-warning me-2"
-        @onclick="() => StartEdit(ticket)">
-
-Edytuj
-
-</button>
-}
-
-@if (CanClose
-&& ticket.Status != "Closed")
-{
-<button class="btn btn-success me-2"
-        @onclick="() => Close(ticket.Id)">
-
-Zamknij
-
-</button>
-}
-
-@if (CanDelete)
-{
-<button class="btn btn-danger"
-        @onclick="() => Delete(ticket.Id)">
-
-Usuń
-
-</button>
-}
-}
-
-</td>
-
-</tr>
-}
-
-</tbody>
-
+                    @if (CanDelete)
+                    {
+                        <button class="btn btn-danger btn-sm"
+                                @onclick="() => Delete(ticket.Id)">
+                            Delete
+                        </button>
+                    }
+                }
+            </td>
+        </tr>
+    }
+    </tbody>
 </table>
 
 @code {
+    private List<TicketDto> _tickets = [];
 
-List<TicketDto> _tickets = [];
+    private string _title = "";
+    private string _description = "";
+    private string _priority = "Medium";
 
-string _title = "";
-string _description = "";
-string _priority = "Medium";
+    private string _error = "";
+    private string _success = "";
 
-string _error = "";
-string _success = "";
+    private string _statusFilter = "All";
+    private string _deletedFilter = "active";
 
-string _statusFilter = "All";
+    private int? _editId;
+    private string _editTitle = "";
+    private string _editPriority = "";
+    private string _editRowVersion = "";
 
-int? _editId;
+    private string? _role;
 
-string _editTitle = "";
-string _editPriority = "";
+    private bool CanEdit =>
+        _role == "Admin"
+        || _role == "Agent";
 
-string _editRowVersion =
-    "";
+    private bool CanClose =>
+        _role == "Admin"
+        || _role == "Agent";
 
-string? _role;
+    private bool CanDelete =>
+        _role == "Admin";
 
-bool CanEdit =>
-    _role == "Admin"
-    || _role == "Agent";
+    private bool IncludeDeleted =>
+        _deletedFilter == "all";
 
-bool CanClose =>
-    _role == "Admin"
-    || _role == "Agent";
+    private bool DeletedOnly =>
+        _deletedFilter == "deleted";
 
-bool CanDelete =>
-    _role == "Admin";
+    private IEnumerable<TicketDto> FilteredTickets =>
+        _statusFilter == "All"
+            ? _tickets
+            : _tickets.Where(
+                x => x.Status == _statusFilter);
 
-IEnumerable<TicketDto> FilteredTickets =>
-    _statusFilter == "All"
-        ? _tickets
-        : _tickets.Where(
-            x => x.Status == _statusFilter);
-
-protected override async Task OnAfterRenderAsync(
-    bool firstRender)
-{
-    if (!firstRender)
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
     {
-        return;
-    }
-
-    await Task.Delay(
-        800);
-
-    _role =
-        await TokenStorage
-            .GetRoleAsync();
-
-    await Load();
-
-    StateHasChanged();
-}
-
-async Task Load()
-{
-    try
-    {
-        _tickets =
-            (await TicketApi
-                .GetAllAsync())
-            .ToList();
-
-        _error =
-            "";
-    }
-    catch
-    {
-        _error =
-            "Nie udało się pobrać ticketów.";
-    }
-}
-
-async Task CreateTicket()
-{
-    await TicketApi.CreateAsync(
-        new()
+        if (!firstRender)
         {
-            Title =
-                _title,
+            return;
+        }
 
-            Description =
-                _description,
+        _role =
+            await TokenStorage
+                .GetRoleAsync();
 
-            Priority =
-                _priority
-        });
+        await Load();
 
-    _title = "";
-    _description = "";
+        StateHasChanged();
+    }
 
-    await Load();
-}
-
-void StartEdit(
-    TicketDto ticket)
-{
-    _editId =
-        ticket.Id;
-
-    _editTitle =
-        ticket.Title;
-
-    _editPriority =
-        ticket.Priority;
-
-    _editRowVersion =
-        ticket.RowVersionBase64;
-}
-
-void CancelEdit()
-{
-    _editId =
-        null;
-
-    _editRowVersion =
-        "";
-}
-
-async Task SaveEdit()
-{
-    var ticket =
-        _tickets.First(
-            x => x.Id == _editId);
-
-    try
+    private async Task Load()
     {
-        await TicketApi.UpdateAsync(
-            ticket.Id,
-            new UpdateTicketDto
+        try
+        {
+            _tickets =
+                (await TicketApi.GetAllAsync(
+                    IncludeDeleted,
+                    DeletedOnly))
+                .ToList();
+
+            _error =
+                "";
+        }
+        catch
+        {
+            _error =
+                "Could not load tickets.";
+        }
+    }
+
+    private async Task CreateTicket()
+    {
+        await TicketApi.CreateAsync(
+            new()
             {
-                Title =
-                    _editTitle,
-
-                Description =
-                    ticket.Description,
-
-                Priority =
-                    _editPriority,
-
-                Status =
-                    ticket.Status,
-
-                RowVersionBase64 =
-                    _editRowVersion
+                Title = _title,
+                Description = _description,
+                Priority = _priority
             });
 
-        _success =
-            "Ticket zapisany.";
+        _title = "";
+        _description = "";
 
-        _error =
-            "";
+        await Load();
     }
-    catch
+
+    private void StartEdit(
+        TicketDto ticket)
     {
-        _error =
-            "Ticket został zmieniony przez innego użytkownika.";
-
-        _success =
-            "";
+        _editId = ticket.Id;
+        _editTitle = ticket.Title;
+        _editPriority = ticket.Priority;
+        _editRowVersion = ticket.RowVersionBase64;
     }
 
-    _editId =
-        null;
+    private void CancelEdit()
+    {
+        _editId = null;
+        _editRowVersion = "";
+    }
 
-    _editRowVersion =
-        "";
+    private async Task SaveEdit()
+    {
+        var ticket =
+            _tickets.First(
+                x => x.Id == _editId);
 
-    await Load();
-}
+        try
+        {
+            await TicketApi.UpdateAsync(
+                ticket.Id,
+                new UpdateTicketDto
+                {
+                    Title = _editTitle,
+                    Description = ticket.Description,
+                    Priority = _editPriority,
+                    Status = ticket.Status,
+                    RowVersionBase64 = _editRowVersion
+                });
 
-async Task Close(
-    int id)
-{
-    await TicketApi.CloseAsync(
-        id);
+            _success = "Ticket saved.";
+            _error = "";
+        }
+        catch
+        {
+            _error = "Ticket was changed by another user.";
+            _success = "";
+        }
 
-    await Load();
-}
+        _editId = null;
+        _editRowVersion = "";
 
-async Task Delete(
-    int id)
-{
-    await TicketApi.DeleteAsync(
-        id);
+        await Load();
+    }
 
-    await Load();
-}
+    private async Task Close(
+        int id)
+    {
+        await TicketApi.CloseAsync(
+            id);
 
+        await Load();
+    }
+
+    private async Task Delete(
+        int id)
+    {
+        await TicketApi.DeleteAsync(
+            id);
+
+        await Load();
+    }
+
+    private async Task Restore(
+        int id)
+    {
+        await TicketApi.RestoreAsync(
+            id);
+
+        await Load();
+    }
+
+    private async Task ExportCsv()
+    {
+        var csv =
+            await TicketApi.ExportCsvAsync(
+                IncludeDeleted,
+                DeletedOnly);
+
+        await JS.InvokeVoidAsync(
+            "authStorage.downloadTextFile",
+            $"tickets-{DateTime.UtcNow:yyyyMMddHHmmss}.csv",
+            "text/csv",
+            csv);
+    }
 }

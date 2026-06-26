@@ -46,5 +46,24 @@ window.authStorage = {
     removeRole: function () {
         localStorage.removeItem(
             "hdh_role");
+    },
+
+    downloadTextFile: function (fileName, contentType, content) {
+        const blob = new Blob(
+            [content],
+            { type: contentType });
+
+        const url = URL.createObjectURL(
+            blob);
+
+        const anchor = document.createElement(
+            "a");
+
+        anchor.href = url;
+        anchor.download = fileName;
+        anchor.click();
+
+        URL.revokeObjectURL(
+            url);
     }
 };

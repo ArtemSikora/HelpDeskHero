@@ -15,10 +15,19 @@ public sealed class TicketApiClient
 
     public async Task<IReadOnlyList<TicketDto>> GetAllAsync()
     {
+        return await GetAllAsync(
+            includeDeleted: false,
+            deletedOnly: false);
+    }
+
+    public async Task<IReadOnlyList<TicketDto>> GetAllAsync(
+        bool includeDeleted,
+        bool deletedOnly)
+    {
         var result =
             await _httpClient
                 .GetFromJsonAsync<PagedResultDto<TicketDto>>(
-                    "api/Tickets");
+                    $"api/Tickets?pageSize=100&includeDeleted={includeDeleted}&deletedOnly={deletedOnly}");
 
         return result?.Items ?? [];
     }
@@ -97,5 +106,26 @@ public sealed class TicketApiClient
                     $"api/Tickets/{id}");
 
         response.EnsureSuccessStatusCode();
+    }
+
+    public async Task RestoreAsync(
+        int id)
+    {
+        var response =
+            await _httpClient
+                .PostAsync(
+                    $"api/Tickets/{id}/restore",
+                    null);
+
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task<string> ExportCsvAsync(
+        bool includeDeleted,
+        bool deletedOnly)
+    {
+        return await _httpClient
+            .GetStringAsync(
+                $"api/Tickets/export?includeDeleted={includeDeleted}&deletedOnly={deletedOnly}");
     }
 }

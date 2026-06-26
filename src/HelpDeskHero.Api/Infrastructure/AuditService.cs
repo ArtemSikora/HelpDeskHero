@@ -17,7 +17,10 @@ public sealed class AuditService
         string action,
         string entityName,
         string entityId,
-        string userName)
+        string userName,
+        string? userId = null,
+        string? ipAddress = null,
+        string? detailsJson = null)
     {
         _db.AuditLogs.Add(
             new AuditLog
@@ -33,6 +36,15 @@ public sealed class AuditService
 
                 UserName =
                     userName,
+
+                UserId =
+                    userId,
+
+                IpAddress =
+                    ipAddress,
+
+                DetailsJson =
+                    detailsJson,
 
                 CreatedAtUtc =
                     DateTime.UtcNow

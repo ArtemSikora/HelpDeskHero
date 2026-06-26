@@ -28,6 +28,17 @@ public sealed class AuthTokenHandler
             await _tokenStorage
                 .GetTokenAsync();
 
+        if (JwtTokenClock.ShouldRefresh(
+                token,
+                TimeSpan.FromMinutes(
+                    1)))
+        {
+            token =
+                await RefreshAccessTokenAsync(
+                    cancellationToken)
+                ?? token;
+        }
+
         if (!string.IsNullOrWhiteSpace(
                 token))
         {
@@ -36,6 +47,11 @@ public sealed class AuthTokenHandler
                     "Bearer",
                     token);
         }
+
+        var retryRequest =
+            await CloneRequestAsync(
+                request,
+                cancellationToken);
 
         var response =
             await base.SendAsync(
@@ -56,6 +72,39 @@ public sealed class AuthTokenHandler
                 refreshToken))
         {
             return response;
+        }
+
+        var refreshedToken =
+            await RefreshAccessTokenAsync(
+                cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(
+                refreshedToken))
+        {
+            return response;
+        }
+
+        retryRequest.Headers.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                refreshedToken);
+
+        return await base.SendAsync(
+            retryRequest,
+            cancellationToken);
+    }
+
+    private async Task<string?> RefreshAccessTokenAsync(
+        CancellationToken cancellationToken)
+    {
+        var refreshToken =
+            await _tokenStorage
+                .GetRefreshTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(
+                refreshToken))
+        {
+            return null;
         }
 
         using var client =
@@ -91,7 +140,7 @@ public sealed class AuthTokenHandler
             await _tokenStorage
                 .RemoveRoleAsync();
 
-            return response;
+            return null;
         }
 
         var dto =
@@ -102,15 +151,18 @@ public sealed class AuthTokenHandler
 
         if (dto is null)
         {
-            return response;
+            return null;
         }
+
+        var accessToken =
+            string.IsNullOrWhiteSpace(
+                dto.AccessToken)
+                ? dto.Token
+                : dto.AccessToken;
 
         await _tokenStorage
             .SetTokenAsync(
-                string.IsNullOrWhiteSpace(
-                    dto.AccessToken)
-                    ? dto.Token
-                    : dto.AccessToken);
+                accessToken);
 
         await _tokenStorage
             .SetRefreshTokenAsync(
@@ -128,16 +180,51 @@ public sealed class AuthTokenHandler
                     role);
         }
 
-        request.Headers.Authorization =
-            new AuthenticationHeaderValue(
-                "Bearer",
-                string.IsNullOrWhiteSpace(
-                    dto.AccessToken)
-                    ? dto.Token
-                    : dto.AccessToken);
+        return accessToken;
+    }
 
-        return await base.SendAsync(
-            request,
-            cancellationToken);
+    private static async Task<HttpRequestMessage> CloneRequestAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        var clone =
+            new HttpRequestMessage(
+                request.Method,
+                request.RequestUri)
+            {
+                Version =
+                    request.Version,
+
+                VersionPolicy =
+                    request.VersionPolicy
+            };
+
+        foreach (var header in request.Headers)
+        {
+            clone.Headers.TryAddWithoutValidation(
+                header.Key,
+                header.Value);
+        }
+
+        if (request.Content is not null)
+        {
+            var bytes =
+                await request.Content
+                    .ReadAsByteArrayAsync(
+                        cancellationToken);
+
+            clone.Content =
+                new ByteArrayContent(
+                    bytes);
+
+            foreach (var header in request.Content.Headers)
+            {
+                clone.Content.Headers.TryAddWithoutValidation(
+                    header.Key,
+                    header.Value);
+            }
+        }
+
+        return clone;
     }
 }

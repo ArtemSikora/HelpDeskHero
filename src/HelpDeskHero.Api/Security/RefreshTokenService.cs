@@ -89,6 +89,32 @@ public sealed class RefreshTokenService
             ct);
     }
 
+    public async Task<int> RevokeAllAsync(
+        string userId,
+        CancellationToken ct = default)
+    {
+        var activeTokens =
+            await _db.RefreshTokens
+                .Where(
+                    x =>
+                        x.UserId == userId
+                        && x.RevokedAtUtc == null
+                        && x.ExpiresAtUtc > DateTime.UtcNow)
+                .ToListAsync(
+                    ct);
+
+        foreach (var token in activeTokens)
+        {
+            token.RevokedAtUtc =
+                DateTime.UtcNow;
+        }
+
+        await _db.SaveChangesAsync(
+            ct);
+
+        return activeTokens.Count;
+    }
+
     public static string NormalizeDeviceName(
         string? deviceName)
     {

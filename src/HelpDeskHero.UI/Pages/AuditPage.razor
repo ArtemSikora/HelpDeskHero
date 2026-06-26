@@ -1,0 +1,67 @@
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@page "/audit"
+
+@using HelpDeskHero.Shared.Contracts.Audit
+@using HelpDeskHero.UI.Services.Api
+
+@inject AuditApiClient AuditApi
+
+<h3>Audit</h3>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <div class="alert alert-danger">
+        @_error
+    </div>
+}
+else if (_logs.Count == 0)
+{
+    <p>No audit logs.</p>
+}
+else
+{
+    <table class="table table-sm">
+        <thead>
+        <tr>
+            <th>Time</th>
+            <th>Action</th>
+            <th>Entity</th>
+            <th>User</th>
+            <th>IP</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var log in _logs)
+        {
+            <tr>
+                <td>@log.CreatedAtUtc.ToLocalTime().ToString("g")</td>
+                <td>@log.Action</td>
+                <td>@log.EntityName #@log.EntityId</td>
+                <td>@log.UserName</td>
+                <td>@log.IpAddress</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<AuditLogDto> _logs = [];
+    private string _error = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _logs =
+                (await AuditApi.GetRecentAsync())
+                .ToList();
+        }
+        catch
+        {
+            _error =
+                "Could not load audit logs.";
+        }
+    }
+}

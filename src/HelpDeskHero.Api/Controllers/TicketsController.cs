@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text;
 
 using HelpDeskHero.Api.Domain;
 using HelpDeskHero.Api.Infrastructure;
@@ -49,7 +50,8 @@ public sealed class TicketsController
                 100);
 
         var ticketsQuery =
-            _db.Tickets
+            CreateTicketQuery(
+                    query)
                 .AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(
@@ -190,6 +192,52 @@ public sealed class TicketsController
                 ticket));
     }
 
+    [HttpGet("export")]
+    [Authorize(
+        Policy =
+            "AgentOrAdmin")]
+    public async Task<IActionResult> ExportCsv(
+        [FromQuery] TicketQueryDto query,
+        CancellationToken ct)
+    {
+        var tickets =
+            await ApplySort(
+                    CreateTicketQuery(
+                        query),
+                    query.SortBy,
+                    query.Desc)
+                .AsNoTracking()
+                .ToListAsync(
+                    ct);
+
+        var csv =
+            new StringBuilder();
+
+        csv.AppendLine(
+            "Number,Title,Status,Priority,CreatedAtUtc,UpdatedAtUtc,IsDeleted,DeletedAtUtc");
+
+        foreach (var ticket in tickets)
+        {
+            csv.AppendLine(
+                string.Join(
+                    ",",
+                    Csv(ticket.Number),
+                    Csv(ticket.Title),
+                    Csv(ticket.Status),
+                    Csv(ticket.Priority),
+                    Csv(ticket.CreatedAtUtc.ToString("O")),
+                    Csv(ticket.UpdatedAtUtc?.ToString("O") ?? ""),
+                    Csv(ticket.IsDeleted.ToString()),
+                    Csv(ticket.DeletedAtUtc?.ToString("O") ?? "")));
+        }
+
+        return File(
+            Encoding.UTF8.GetBytes(
+                csv.ToString()),
+            "text/csv",
+            $"tickets-{DateTime.UtcNow:yyyyMMddHHmmss}.csv");
+    }
+
     [HttpPut("{id}")]
     [Authorize(
         Policy =
@@ -320,6 +368,91 @@ public sealed class TicketsController
         return NoContent();
     }
 
+    [HttpPost("{id}/restore")]
+    [Authorize(
+        Policy =
+            "AdminOnly")]
+    public async Task<IActionResult> Restore(
+        int id,
+        CancellationToken ct)
+    {
+        var ticket =
+            await _db.Tickets
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(
+                    x =>
+                        x.Id
+                        == id,
+                    ct);
+
+        if (ticket is null)
+        {
+            return NotFound();
+        }
+
+        if (!ticket.IsDeleted)
+        {
+            return NoContent();
+        }
+
+        ticket.IsDeleted =
+            false;
+
+        ticket.DeletedAtUtc =
+            null;
+
+        ticket.DeletedByUserId =
+            null;
+
+        ticket.UpdatedAtUtc =
+            DateTime.UtcNow;
+
+        ticket.RowVersion =
+            Guid.NewGuid();
+
+        await _db.SaveChangesAsync(
+            ct);
+
+        await _audit
+            .WriteAsync(
+                "RESTORE",
+                "Ticket",
+                id.ToString(),
+                User.Identity?.Name
+                ?? "unknown");
+
+        return NoContent();
+    }
+
+    private IQueryable<Ticket> CreateTicketQuery(
+        TicketQueryDto query)
+    {
+        if (!User.IsInRole(
+                "Admin"))
+        {
+            query.IncludeDeleted =
+                false;
+
+            query.DeletedOnly =
+                false;
+        }
+
+        if (query.IncludeDeleted
+            || query.DeletedOnly)
+        {
+            var allTickets =
+                _db.Tickets
+                    .IgnoreQueryFilters();
+
+            return query.DeletedOnly
+                ? allTickets.Where(
+                    x => x.IsDeleted)
+                : allTickets;
+        }
+
+        return _db.Tickets;
+    }
+
     private static IQueryable<Ticket> ApplySort(
         IQueryable<Ticket> query,
         string? sortBy,
@@ -379,10 +512,22 @@ public sealed class TicketsController
             UpdatedAtUtc =
                 ticket.UpdatedAtUtc,
 
+            IsDeleted =
+                ticket.IsDeleted,
+
+            DeletedAtUtc =
+                ticket.DeletedAtUtc,
+
             RowVersionBase64 =
                 EncodeRowVersion(
                     ticket.RowVersion)
         };
+    }
+
+    private static string Csv(
+        string value)
+    {
+        return $"\"{value.Replace("\"", "\"\"")}\"";
     }
 
     private static string EncodeRowVersion(

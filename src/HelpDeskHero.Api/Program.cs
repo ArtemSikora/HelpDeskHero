@@ -3,6 +3,7 @@ using System.Text;
 using HelpDeskHero.Api.Domain;
 using HelpDeskHero.Api.Infrastructure;
 using HelpDeskHero.Api.Infrastructure.Persistence;
+using HelpDeskHero.Api.Middleware;
 using HelpDeskHero.Api.Security;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -272,6 +273,9 @@ if (app.Environment
     app.UseSwaggerUI();
 }
 
+app.UseMiddleware<
+    GlobalExceptionMiddleware>();
+
 app.UseCors(
     CorsPolicyName);
 
@@ -282,3 +286,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+public partial class Program
+{
+}

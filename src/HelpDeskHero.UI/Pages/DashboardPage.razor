@@ -1,0 +1,112 @@
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@page "/dashboard"
+
+@using HelpDeskHero.Shared.Contracts.Dashboard
+@using HelpDeskHero.UI.Services.Api
+
+@inject DashboardApiClient DashboardApi
+
+<h3>Dashboard</h3>
+
+@if (_dashboard is null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="border rounded p-3">
+                <div class="text-muted">Open</div>
+                <div class="fs-3">@_dashboard.OpenTickets</div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="border rounded p-3">
+                <div class="text-muted">Closed</div>
+                <div class="fs-3">@_dashboard.ClosedTickets</div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="border rounded p-3">
+                <div class="text-muted">High priority</div>
+                <div class="fs-3">@_dashboard.HighPriorityOpenTickets</div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="border rounded p-3">
+                <div class="text-muted">Deleted</div>
+                <div class="fs-3">@_dashboard.DeletedTickets</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <h5>Status</h5>
+            <table class="table table-sm">
+                <tbody>
+                @foreach (var item in _dashboard.ByStatus)
+                {
+                    <tr>
+                        <td>@item.Key</td>
+                        <td class="text-end">@item.Value</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="col-md-6">
+            <h5>Priority</h5>
+            <table class="table table-sm">
+                <tbody>
+                @foreach (var item in _dashboard.ByPriority)
+                {
+                    <tr>
+                        <td>@item.Key</td>
+                        <td class="text-end">@item.Value</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <h5 class="mt-4">Recent tickets</h5>
+    <table class="table table-sm">
+        <thead>
+        <tr>
+            <th>Number</th>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Priority</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var ticket in _dashboard.RecentTickets)
+        {
+            <tr>
+                <td>@ticket.Number</td>
+                <td>@ticket.Title</td>
+                <td>@ticket.Status</td>
+                <td>@ticket.Priority</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+@code {
+    private TicketDashboardDto? _dashboard;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _dashboard =
+            await DashboardApi.GetAsync();
+    }
+}

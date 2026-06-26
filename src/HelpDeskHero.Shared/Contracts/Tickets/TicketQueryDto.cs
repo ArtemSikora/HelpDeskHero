@@ -15,4 +15,8 @@ public sealed class TicketQueryDto
     public string SortBy { get; set; } = "CreatedAtUtc";
 
     public bool Desc { get; set; } = true;
+
+    public bool IncludeDeleted { get; set; }
+
+    public bool DeletedOnly { get; set; }
 }

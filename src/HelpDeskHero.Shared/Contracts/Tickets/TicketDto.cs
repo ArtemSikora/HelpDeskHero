@@ -23,6 +23,10 @@ public sealed class TicketDto
 
     public DateTime? UpdatedAtUtc { get; set; }
 
+    public bool IsDeleted { get; set; }
+
+    public DateTime? DeletedAtUtc { get; set; }
+
     public string RowVersionBase64 { get; set; } =
         string.Empty;
 }

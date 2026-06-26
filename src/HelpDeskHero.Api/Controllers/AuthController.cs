@@ -1,3 +1,5 @@
+using System.Security.Claims;
+
 using HelpDeskHero.Api.Domain;
 using HelpDeskHero.Api.Security;
 using HelpDeskHero.Shared.Contracts.Auth;
@@ -151,6 +153,36 @@ public sealed class AuthController
         }
 
         return Ok();
+    }
+
+    [HttpPost("revoke-all")]
+    [Authorize]
+    public async Task<ActionResult<RevokeAllSessionsResponseDto>>
+        RevokeAll(
+            CancellationToken ct)
+    {
+        var userId =
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrWhiteSpace(
+                userId))
+        {
+            return Unauthorized();
+        }
+
+        var revokedCount =
+            await _refreshTokenService
+                .RevokeAllAsync(
+                    userId,
+                    ct);
+
+        return Ok(
+            new RevokeAllSessionsResponseDto
+            {
+                RevokedCount =
+                    revokedCount
+            });
     }
 
     private async Task<LoginResponseDto>

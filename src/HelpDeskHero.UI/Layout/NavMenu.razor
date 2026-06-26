@@ -45,6 +45,18 @@
 
                 <NavLink
                     class="nav-link"
+                    href="dashboard">
+
+                    Dashboard
+
+                </NavLink>
+
+            </div>
+
+            <div class="nav-item px-3">
+
+                <NavLink
+                    class="nav-link"
                     href="tickets">
 
                     Tickets
@@ -53,27 +65,30 @@
 
             </div>
 
-            <div class="nav-item px-3">
+            @if (_role == "Admin")
+            {
+                <div class="nav-item px-3">
 
-                <NavLink
-                    class="nav-link"
-                    href="counter">
+                    <NavLink
+                        class="nav-link"
+                        href="audit">
 
-                    Counter
+                        Audit
 
-                </NavLink>
+                    </NavLink>
 
-            </div>
+                </div>
+            }
 
-            <div class="nav-item px-3">
+            <div class="nav-item px-3 mt-4">
 
-                <NavLink
-                    class="nav-link"
-                    href="weather">
+                <button
+                    class="btn btn-outline-warning w-100"
+                    @onclick="RevokeAllSessions">
 
-                    Weather
+                    Revoke sessions
 
-                </NavLink>
+                </button>
 
             </div>
 
@@ -115,6 +130,8 @@
 
     private bool _isLogged;
 
+    private string? _role;
+
     private string?
         NavMenuCssClass =>
             collapseNavMenu
@@ -131,6 +148,10 @@
             !string
                 .IsNullOrWhiteSpace(
                     token);
+
+        _role =
+            await TokenStorage
+                .GetRoleAsync();
     }
 
     private void ToggleNavMenu()
@@ -143,6 +164,17 @@
     {
         await AuthService
             .LogoutAsync();
+
+        Navigation
+            .NavigateTo(
+                "/login",
+                true);
+    }
+
+    private async Task RevokeAllSessions()
+    {
+        await AuthService
+            .RevokeAllSessionsAsync();
 
         Navigation
             .NavigateTo(

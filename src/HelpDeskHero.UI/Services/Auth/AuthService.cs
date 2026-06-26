@@ -87,6 +87,26 @@ public sealed class AuthService
 
     public async Task LogoutAsync()
     {
+        var refreshToken =
+            await _tokenStorage
+                .GetRefreshTokenAsync();
+
+        if (!string.IsNullOrWhiteSpace(
+                refreshToken))
+        {
+            await _http
+                .PostAsJsonAsync(
+                    "api/Auth/revoke",
+                    new RefreshTokenRequestDto
+                    {
+                        RefreshToken =
+                            refreshToken,
+
+                        DeviceName =
+                            "Blazor WebAssembly"
+                    });
+        }
+
         await _tokenStorage
             .RemoveTokenAsync();
 
@@ -95,5 +115,25 @@ public sealed class AuthService
 
         await _tokenStorage
             .RemoveRoleAsync();
+    }
+
+    public async Task<int> RevokeAllSessionsAsync()
+    {
+        var response =
+            await _http
+                .PostAsync(
+                    "api/Auth/revoke-all",
+                    null);
+
+        response.EnsureSuccessStatusCode();
+
+        var dto =
+            await response.Content
+                .ReadFromJsonAsync<
+                    RevokeAllSessionsResponseDto>();
+
+        await LogoutAsync();
+
+        return dto?.RevokedCount ?? 0;
     }
 }

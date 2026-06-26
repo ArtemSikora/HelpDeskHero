@@ -67,6 +67,14 @@ builder.Services
 
 builder.Services
     .AddScoped<
+        DashboardApiClient>();
+
+builder.Services
+    .AddScoped<
+        AuditApiClient>();
+
+builder.Services
+    .AddScoped<
         AuthService>();
 
 await builder
